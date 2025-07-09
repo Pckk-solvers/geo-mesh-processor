@@ -39,9 +39,8 @@ YLLCORNER 4200000
 DX         30          # 水平解像度
 DY         20          # 垂直解像度
 NODATA_VALUE -9999
-GDAL は非正方ピクセルを書き出すとき自動で DX/DY を採用（FORCE_CELLSIZE=YES で強制抑止可）
 ```
-QGIS は読み込み時に DX/DY を正しく認識し、セルを矩形として扱います。
-
+- GDAL は非正方ピクセルを書き出すとき自動で DX/DY を採用（FORCE_CELLSIZE=YES で強制抑止可）
+- QGIS は読み込み時に DX/DY を正しく認識し、セルを矩形として扱います。
 
 > センタ基準＋DX/DY という組み合わせも許容されます。書き換えるのは XLLCORNER/YLLCORNER → XLLCENTER/YLLCENTER だけです。
