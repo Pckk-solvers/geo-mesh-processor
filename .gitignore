@@ -1,3 +1,5 @@
 sample_polygon
 input
 output
+*.pyc
+__pycache__
