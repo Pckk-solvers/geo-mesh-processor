@@ -130,9 +130,9 @@ class ShpToAscApp(tk.Tk):
                 "完了",
                 f"変換が完了しました:\n"
                 f"出力先: {outpath}\n\n"
-                f"使用されたグリッド数:\n"
+                f"使用されたセル数:\n"
                 f"ncols, nrows = {ncols}, {nrows}\n"
-                f"使用されたグリッド間隔:\n"
+                f"使用されたセルサイズ:\n"
                 f"dx, dy = {actual_dx:.12f}, {actual_dy:.12f}\n"
             )
         except Exception as e:

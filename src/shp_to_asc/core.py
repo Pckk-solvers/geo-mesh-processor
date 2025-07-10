@@ -146,7 +146,7 @@ def shp_to_ascii(shp_path, field, nodata, output_path, bounds=None):
     grid_miny = shape_center_y - grid_height / 2
     grid_maxy = shape_center_y + grid_height / 2
     
-    print(f"グリッド数: {ncols} x {nrows}")
+    print(f"セル数: {ncols} x {nrows}")
     print(f"セルサイズ: dx={dx:.12f}, dy={dy:.12f}")
     print(f"シェープ範囲: minx={minx:.12f}, miny={miny:.12f}, maxx={maxx:.12f}, maxy={maxy:.12f}")
     print(f"グリッド範囲: minx={grid_minx:.12f}, miny={grid_miny:.12f}, maxx={grid_maxx:.12f}, maxy={grid_maxy:.12f}")
