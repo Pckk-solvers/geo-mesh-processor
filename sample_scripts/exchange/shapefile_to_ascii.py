@@ -83,13 +83,13 @@ if __name__ == '__main__':
     parser.add_argument(
         'shapefile',
         nargs='?',
-        default=r'sample_polygon\sample_polygon.shp',
-        help='Path to input polygon shapefile (default: sample_polygon\sample_polygon.shp)'
+        default=r'input\sample_polygon_WGS84_1\sample_polygon_WGS84.shp',
+        help='Path to input polygon shapefile (default: input\sample_polygon_WGS84\sample_polygon_WGS84.shp)'
     )
     parser.add_argument(
         '-o', '--output',
-        default=r'output\output.asc',
-        help='Output ASCII Grid file path (default: output.asc)'
+        help='Path to output ASC file. If omitted, uses output/<入力ファイル名>.asc',
+        default=None
     )
     parser.add_argument(
         '-a', '--attribute',
@@ -117,10 +117,23 @@ if __name__ == '__main__':
     if not os.path.exists(args.shapefile):
         print(f"Error: Shapefile '{args.shapefile}' not found.")
         sys.exit(1)
+    # 入力ファイル名（拡張子なし）を取得
+    base = os.path.splitext(os.path.basename(args.shapefile))[0]
+
+    # 出力ディレクトリ＆ファイル名を決定
+    out_dir = 'output'
+    if args.output:
+        out_asc = args.output
+        out_dir = os.path.dirname(out_asc) or out_dir
+    else:
+        out_asc = os.path.join(out_dir, f'{base}.asc')
+
+    # 出力ディレクトリがなければ作成
+    os.makedirs(out_dir, exist_ok=True)
 
     rasterize_to_ascii(
         args.shapefile,
-        args.output,
+        out_asc,
         args.attribute,
         dx=args.dx,
         dy=args.dy,

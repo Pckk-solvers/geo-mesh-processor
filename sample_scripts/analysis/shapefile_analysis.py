@@ -136,7 +136,7 @@ def main():
     parser.add_argument(
         "shapefile",
         nargs='?',
-        default=r'sample_polygon\sample_polygon.shp',
+        default=r'input\sample_polygon_WGS84_1\sample_polygon_WGS84.shp',
         help="Input shapefile path (default: %(default)s)\n入力シェープファイルのパス(デフォルト: %(default)s)"
     )
     parser.add_argument("--dx", type=float, help="Cell width DX in map units\nセル幅 DX" )
