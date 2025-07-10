@@ -2,3 +2,5 @@ input
 output
 *.pyc
 *__pycache__
+output2
+output3

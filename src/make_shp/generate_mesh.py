@@ -1,60 +1,80 @@
-#!/usr/bin/env python
+# generate_mesh.py
+#!/usr/bin/env python3
 """
-basin_mesh に平均標高を付与し
-domain_mesh へ転記 (流域外セルは NoData)
+計算領域ポリゴンを任意セルサイズでグリッド化し、
+流域界ポリゴンでクリップした 2 種類のメッシュを Shapefile 出力
 """
-import argparse, pandas as pd, geopandas as gpd
-from shapely.geometry import Point
+import argparse
+import math
+import numpy as np
+import geopandas as gpd
+from shapely.geometry import box
 
-NODATA = -9999
+def build_grid(extent, num_cells_x, num_cells_y, crs):
+    minx, miny, maxx, maxy = extent
+    width = maxx - minx
+    height = maxy - miny
+    
+    # セルサイズを計算
+    cell_size_x = width / num_cells_x
+    cell_size_y = height / num_cells_y
+    
+    print(f"X方向のセルサイズ: {cell_size_x:.6f} 度")
+    print(f"Y方向のセルサイズ: {cell_size_y:.6f} 度")
+    print(f"X方向のセル数: {num_cells_x}, Y方向のセル数: {num_cells_y}")
+    print(f"実サイズ: 横 {width:.6f} 度 x 縦 {height:.6f} 度")
+    
+    # グリッド生成
+    xs = np.linspace(minx, maxx, num_cells_x + 1)
+    ys = np.linspace(miny, maxy, num_cells_y + 1)
+    
+    polys = []
+    for i in range(num_cells_x):
+        for j in range(num_cells_y):
+            poly = box(xs[i], ys[j], xs[i+1], ys[j+1])
+            polys.append(poly)
+    
+    return gpd.GeoDataFrame(geometry=polys, crs=crs)
 
-def detect_columns(df):
-    cols_lower = {c.lower(): c for c in df.columns}
-    x_col = cols_lower.get("x")
-    y_col = cols_lower.get("y")
-    if x_col is None or y_col is None:
-        raise ValueError("CSV に x / y 列が見つかりません")
+def main(domain_shp, basin_shp, num_cells_x, num_cells_y, out_dir):
+    domain = gpd.read_file(domain_shp)
+    basin_gdf = gpd.read_file(basin_shp).to_crs(domain.crs)
 
-    # Z 列は x・y 以外の 3 番目の列を自動採用
-    z_candidates = [c for c in df.columns if c not in (x_col, y_col)]
-    if not z_candidates:
-        raise ValueError("Z 列を自動検出できません（3 列目が必要）")
-    z_col = z_candidates[0]
-    return x_col, y_col, z_col
+    # 1) 全体メッシュ生成
+    grid = build_grid(domain.total_bounds, num_cells_x, num_cells_y, domain.crs)
 
-def load_points(path, crs):
-    if path.lower().endswith(".shp"):
-        return gpd.read_file(path).to_crs(crs)
+    # 2) 流域ポリゴンを一つの形状にまとめる
+    basin_union = basin_gdf.unary_union
 
-    # CSV / TXT
-    df = pd.read_csv(path)
-    x_col, y_col, z_col = detect_columns(df)
-    geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]
-    gdf  = gpd.GeoDataFrame(df[[z_col]], geometry=geom, crs=crs).rename(columns={z_col: "elev"})
-    return gdf
+    # 3) 各セルが流域ユニオンと交差するかでフィルタ
+    mask = grid.geometry.intersects(basin_union)
+    basin_mesh = grid[mask].copy()
+    
+    # 出力フォルダ準備
+    import os
+    os.makedirs(out_dir, exist_ok=True)
 
-def main(basin_mesh_shp, domain_mesh_shp, points_path, out_dir):
-    basin  = gpd.read_file(basin_mesh_shp)
-    domain = gpd.read_file(domain_mesh_shp).to_crs(basin.crs)
-    points = load_points(points_path, basin.crs)
+    # 4) Shapefile 出力
+    grid.to_file(f"{out_dir}/domain_mesh.shp")       # 全体セル
+    basin_mesh.to_file(f"{out_dir}/basin_mesh.shp")   # 流域内セル（正方形のみ）
+    print(f"Domain CRS: {domain.crs}")
+    print(f"Domain bounds: {domain.total_bounds}")
+    print(f"Basin CRS: {basin_gdf.crs}")
+    print(f"Basin bounds: {basin_gdf.total_bounds}")    
+    print(f"Grid CRS: {grid.crs}")
+    print(f"Grid bounds: {grid.total_bounds}")
+    print(f"Basin mesh CRS: {basin_mesh.crs}")
+    print(f"Basin mesh bounds: {basin_mesh.total_bounds}")
 
-    # 空間結合 → ポリゴンごとの平均
-    joined  = gpd.sjoin(points, basin, predicate="within", how="left")
-    mean_elev = joined.groupby("index_right")["elev"].mean()
-    basin["elev"] = mean_elev.reindex(basin.index).fillna(NODATA)
-
-    # domain へ転記
-    domain = domain.merge(basin[["elev"]], left_index=True, right_index=True, how="left")
-    domain["elev"] = domain["elev"].fillna(NODATA)
-
-    basin.to_file(f"{out_dir}/basin_mesh_elev.shp")
-    domain.to_file(f"{out_dir}/domain_mesh_elev.shp")
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--basin_mesh",  required=True, help="basin_mesh.shp")
-    ap.add_argument("--domain_mesh", required=True, help="domain_mesh.shp")
-    ap.add_argument("--points",      required=True, help="点群 (SHP / CSV / TXT)")
-    ap.add_argument("--outdir",      default="../outputs", help="出力フォルダ")
+    ap = argparse.ArgumentParser(description="メッシュ生成")
+    ap.add_argument("--domain", required=True, help="計算領域ポリゴン (.shp)")
+    ap.add_argument("--basin", required=True, help="流域界ポリゴン (.shp)")
+    ap.add_argument("--cells_x", type=int, required=True, help="X方向の分割数")
+    ap.add_argument("--cells_y", type=int, required=True, help="Y方向の分割数")
+    ap.add_argument("--outdir", default="./outputs", help="出力フォルダ")
     args = ap.parse_args()
-    main(args.basin_mesh, args.domain_mesh, args.points, args.outdir)
+    main(args.domain, args.basin, args.cells_x, args.cells_y, args.outdir)
+
+# python src/make_shp/generate_mesh.py --domain input\SHP→ASC変換作業_サンプルデータ\計算領域_POL.shp --basin input\SHP→ASC変換作業_サンプルデータ\流域界_POL.shp --cells_x 100 --cells_y 100 --outdir ./output2
