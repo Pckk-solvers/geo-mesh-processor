@@ -103,16 +103,16 @@ class MeshElevApp(ttk.Frame):
 
         os.makedirs(outdir, exist_ok=True)
 
-        cmd1 = [sys.executable, os.path.join(os.path.dirname(__file__), 'generate_mesh.py'),
-                '--domain', domain, '--basin', basin,
-                '--cells_x', str(ix), '--cells_y', str(iy), '--outdir', outdir]
-        cmd2 = [sys.executable, os.path.join(os.path.dirname(__file__), 'add_elevation.py'),
-                '--basin_mesh', os.path.join(outdir, 'basin_mesh.shp'),
-                '--domain_mesh', os.path.join(outdir, 'domain_mesh.shp'),
-                '--points', points, '--outdir', outdir]
+        # パイプラインスクリプトを呼び出し
+        cmd = [sys.executable, os.path.join(os.path.dirname(__file__), 'pipeline.py'),
+               '--domain', domain,
+               '--basin', basin,
+               '--cells_x', str(ix),
+               '--cells_y', str(iy),
+               '--points', points,
+               '--outdir', outdir]
         try:
-            subprocess.check_call(cmd1)
-            subprocess.check_call(cmd2)
+            subprocess.check_call(cmd)
             messagebox.showinfo('完了','メッシュ生成と標高付与が完了しました！')
         except subprocess.CalledProcessError as e:
             messagebox.showerror('エラー', f'処理中にエラーが発生しました: {e}')
@@ -123,5 +123,3 @@ if __name__ == '__main__':
     root.rowconfigure(6, weight=1)
     app = MeshElevApp(root)
     root.mainloop()
-
-# python src/make_shp/mesh_elec_gui.py
