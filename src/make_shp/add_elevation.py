@@ -11,39 +11,84 @@ from shapely.geometry import Point
 
 NODATA = -9999
 
-def detect_columns(df):
-    # 小文字に統一して列名を取得
-    cols = {c.lower(): c for c in df.columns}
-    
-    # x, y列を取得
-    x_col = cols.get("x")
-    y_col = cols.get("y")
-    if x_col is None or y_col is None:
-        raise ValueError("CSV に 'x' / 'y' 列が見つかりません")
 
-    # x, y 以外の最初の列を z 列として使用
-    z_col = next((c for c in df.columns if c.lower() not in ("x", "y")), None)
-    if z_col is None:
-        raise ValueError("Z 列が見つかりません")
-    print(f"X 列: {x_col}, Y 列: {y_col}, Z 列: {z_col}")
-        
-    return x_col, y_col, z_col
+def get_xy_columns(df):
+    """
+    DataFrame df から X 列と Y 列を検出して返す。
+    - X 候補: 'x', 'lon', 'longitude'
+    - Y 候補: 'y', 'lat', 'latitude'
+    見つからなければ ValueError を投げる。
+    """
+    cols = df.columns.tolist()
+    # 小文字マッピング
+    lower_map = {c.lower(): c for c in cols}
 
-def load_points(path, target_crs):
+    # X 列
+    for key in ('x'):
+        if key in lower_map:
+            x_col = lower_map[key]
+            break
+    else:
+        raise ValueError("X 列（x）が見つかりません")
+
+    # Y 列
+    for key in ('y'):
+        if key in lower_map:
+            y_col = lower_map[key]
+            break
+    else:
+        raise ValueError("Y 列（y）が見つかりません")
+
+    return x_col, y_col
+
+
+def get_z_candidates(df, x_col, y_col):
+    """
+    DataFrame df の中から、X 列と Y 列を除いた残りの列名リストを返す。
+    数値型の列を優先し、なければそれ以外の列も候補に含める。
+    """
+    # まず数値型の列を取得し、X,Y を除外
+    num_cols = [
+        c for c in df.select_dtypes(include='number').columns
+        if c not in (x_col, y_col)
+    ]
+    if num_cols:
+        return num_cols
+
+    # 数値型がなければ、残り全列を候補に
+    other_cols = [c for c in df.columns if c not in (x_col, y_col)]
+    return other_cols
+
+
+
+def load_points(path, target_crs, zcol_arg=None):
     # 1. SHPファイルの場合
     if path.lower().endswith(".shp"):
         return gpd.read_file(path).to_crs(target_crs)
 
-    # 2. CSVファイルの場合
     df = pd.read_csv(path)
-    x_col, y_col, z_col = detect_columns(df)
-    
-    # 3. GeoDataFrameの作成（ターゲットのCRSを直接使用）
+    x_col, y_col = get_xy_columns(df)
+    # Z 列候補を取得
+    z_cands = get_z_candidates(df, x_col, y_col)
+
+    # zcol_arg があればそれを使い、なければ候補を1つに絞る／エラー
+    if zcol_arg:
+        if zcol_arg in z_cands:
+            z_col = zcol_arg
+        else:
+            raise ValueError(f"指定された Z 列 '{zcol_arg}' が候補 {z_cands} にありません")
+    else:
+        if len(z_cands) == 1:
+            z_col = z_cands[0]
+        else:
+            raise ValueError(f"Z 列候補が複数あります: {z_cands}。--zcol で指定してください")
+
+    # GeoDataFrame の作成
     geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]
     gdf = gpd.GeoDataFrame(
-        df[[z_col]].rename(columns={z_col: "elev"}),
+        df[[z_col]].rename(columns={z_col: "elev"}), 
         geometry=geom,
-        crs=target_crs  # ターゲットのCRSを直接使用
+        crs=target_crs
     )
     
     print(f"点群の平均標高: {gdf['elev'].mean():.6f}")
@@ -52,7 +97,7 @@ def load_points(path, target_crs):
     
     return gdf
 
-def main(basin_shp, domain_shp, points_path, out_dir):
+def main(basin_shp, domain_shp, points_path, out_dir, zcol=None):
     # 1. ベースとなるポリゴンデータの読み込み
     basin = gpd.read_file(basin_shp)
     print(f"ベースのCRS: {basin.crs}")
@@ -61,7 +106,7 @@ def main(basin_shp, domain_shp, points_path, out_dir):
     domain = gpd.read_file(domain_shp).to_crs(basin.crs)
     
     # 3. 点群データの読み込みと座標系の設定
-    points = load_points(points_path, basin.crs)
+    points = load_points(points_path, basin.crs, zcol)
     
     # 4. 座標系が正しく設定されているか確認
     print(f"点群データのCRS: {points.crs}")
@@ -113,8 +158,9 @@ if __name__ == "__main__":
     ap.add_argument("--basin_mesh",  required=True, help="流域メッシュ (.shp)")
     ap.add_argument("--domain_mesh", required=True, help="計算領域メッシュ (.shp)")
     ap.add_argument("--points",      required=True, help="点群 CSV/SHP (.csv/.txt/.shp)")
+    ap.add_argument("--zcol",        default=None, help="Z 列名")
     ap.add_argument("--outdir",      default="./outputs", help="出力フォルダ")
     args = ap.parse_args()
-    main(args.basin_mesh, args.domain_mesh, args.points, args.outdir)
+    main(args.basin_mesh, args.domain_mesh, args.points, args.outdir, args.zcol)
     
 # python src/make_shp/add_elevation.py --basin_mesh output2\basin_mesh.shp --domain_mesh output2\domain_mesh.shp --points input\SHP→ASC変換作業_サンプルデータ\標高点群.csv --outdir ./output3
