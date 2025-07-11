@@ -86,12 +86,12 @@ def load_points(path, target_crs, zcol_arg=None):
     # GeoDataFrame の作成
     geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]
     gdf = gpd.GeoDataFrame(
-        df[[z_col]].rename(columns={z_col: "elev"}), 
+        df[[z_col]].rename(columns={z_col: "elevation"}), 
         geometry=geom,
         crs=target_crs
     )
     
-    print(f"点群の平均標高: {gdf['elev'].mean():.6f}")
+    print(f"点群の平均標高: {gdf['elevation'].mean():.6f}")
     print(f"点群の座標系: {gdf.crs}")
     print(f"点群の範囲: {gdf.total_bounds}")
     
@@ -124,19 +124,26 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None):
     print("\nbasinのインデックス:", basin.index.tolist()[:10])
     print("joinedのindex_rightのユニーク値:", joined["index_right"].unique()[:10])
     
-    # 平均標高を計算
-    mean_elev = joined.groupby("index_right")["elev"].mean()
+    # 平均標高と点数を計算
+    grouped = joined.groupby("index_right")
+    mean_elev = grouped["elevation"].mean()
+    point_count = grouped.size()
+    point_count.name = "pnt_count"
     print("\n平均標高の計算結果:")
     print(mean_elev.head())
-    
-    # 元のbasinのインデックスに合わせて再インデックス
-    basin["elev"] = basin.index.map(mean_elev).fillna(NODATA)
+    print("\n点群数の計算結果:")
+    print(point_count.head())
+
+    # basinに標高と点数を追加
+    basin["elevation"] = basin.index.map(mean_elev).fillna(NODATA)
+    basin["pnt_count"] = basin.index.map(point_count).fillna(0).astype(int)
     
     # 空間結合でdomainとbasinをマッチング
-    domain = gpd.sjoin(domain, basin[["elev", "geometry"]], how="left", predicate="within")
+    domain = gpd.sjoin(domain, basin[["elevation", "pnt_count", "geometry"]], how="left", predicate="within")
     
-    domain = domain[["elev", "geometry"]].dissolve(by=domain.index).reset_index()
-    domain["elev"] = domain["elev"].fillna(NODATA)
+    domain = domain[["elevation", "pnt_count", "geometry"]].dissolve(by=domain.index).reset_index()
+    domain["elevation"] = domain["elevation"].fillna(NODATA)
+    domain["pnt_count"] = domain["pnt_count"].fillna(0).astype(int)
     
 
     # 出力フォルダを作成
@@ -146,9 +153,13 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None):
     # デバッグ用に標高の統計情報を表示
     print("\n最終的な標高の統計:")
     print("流域メッシュの標高統計:")
-    print(basin["elev"].describe())
+    print(basin["elevation"].describe())
+    print("\n流域メッシュの点群数統計:")
+    print(basin["pnt_count"].describe())
     print("\n計算領域メッシュの標高統計:")
-    print(domain["elev"].describe())
+    print(domain["elevation"].describe())
+    print("\n計算領域メッシュの点群数統計:")
+    print(domain["pnt_count"].describe())
 
     basin.to_file(f"{out_dir}/basin_mesh_elev.shp")
     domain.to_file(f"{out_dir}/domain_mesh_elev.shp")
@@ -163,4 +174,4 @@ if __name__ == "__main__":
     args = ap.parse_args()
     main(args.basin_mesh, args.domain_mesh, args.points, args.outdir, args.zcol)
     
-# python src/make_shp/add_elevation.py --basin_mesh output2\basin_mesh.shp --domain_mesh output2\domain_mesh.shp --points input\SHP→ASC変換作業_サンプルデータ\標高点群.csv --outdir ./output3
+# python src/make_shp/add_elevation.py --basin_mesh output4\basin_mesh.shp --domain_mesh output4\domain_mesh.shp --points input\SHP→ASC変換作業_サンプルデータ\標高点群.csv --outdir ./output3

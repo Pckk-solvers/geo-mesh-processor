@@ -2,55 +2,67 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import fiona
 import os
-from core import analyze_grid_structure, shp_to_ascii
-from utils import get_available_filename, read_crs
+from .core import analyze_grid_structure, shp_to_ascii
+from .utils import get_available_filename
 
-class ShpToAscApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("シェープファイル → ASCII グリッド変換ツール")
+class ShpToAscApp(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.grid(sticky='nsew', padx=10, pady=10)
+        master.title("シェープファイル → ASCII グリッド変換ツール")
+        master.columnconfigure(1, weight=1)
+        # 行の柔軟性設定
+        for i in range(7):
+            master.rowconfigure(i, weight=0)
+        master.rowconfigure(5, weight=1)
+        self.create_widgets()
+
+    def create_widgets(self):
+        LABEL_WIDTH = 25
+        ENTRY_WIDTH = 50
+        BUTTON_WIDTH = 12
 
         # --- シェープファイル選択 ---
+        ttk.Label(self, text="シェープファイル (.shp):", width=LABEL_WIDTH, anchor='e')\
+            .grid(row=0, column=0, padx=5, pady=5, sticky='e')
         self.input_path_var = tk.StringVar()
-        tk.Button(self, text="シェープファイル選択", command=self.select_input).grid(row=0, column=0, padx=5, pady=5)
-        tk.Label(self, textvariable=self.input_path_var).grid(row=0, column=1, sticky='w')
+        ttk.Entry(self, textvariable=self.input_path_var, width=ENTRY_WIDTH, state='readonly')\
+            .grid(row=0, column=1, sticky='we', padx=5, pady=5)
+        ttk.Button(self, text="参照", command=self.select_input, width=BUTTON_WIDTH)\
+            .grid(row=0, column=2, padx=5, pady=5)
 
         # --- 属性フィールド選択 ---
-        tk.Label(self, text="焼き込みに使う属性フィールド:").grid(row=1, column=0, padx=5, pady=5)
-        self.field_cb = ttk.Combobox(self, values=[], state="readonly")
+        ttk.Label(self, text="焼き込み属性フィールド:", width=LABEL_WIDTH, anchor='e')\
+            .grid(row=1, column=0, padx=5, pady=5, sticky='e')
+        self.field_cb = ttk.Combobox(self, values=[], state='readonly', width=ENTRY_WIDTH-2)
         self.field_cb.grid(row=1, column=1, sticky='w', padx=5, pady=5)
 
         # --- NoData 値設定 ---
-        tk.Label(self, text="NoData 値:").grid(row=2, column=0, padx=5, pady=5)
+        ttk.Label(self, text="NoData 値:", width=LABEL_WIDTH, anchor='e')\
+            .grid(row=2, column=0, padx=5, pady=5, sticky='e')
         self.nodata_var = tk.StringVar(value="-9999")
-        tk.Entry(self, textvariable=self.nodata_var).grid(row=2, column=1, sticky='w', padx=5, pady=5)
+        ttk.Entry(self, textvariable=self.nodata_var, width=ENTRY_WIDTH)\
+            .grid(row=2, column=1, sticky='w', padx=5, pady=5)
 
-        # # --- CRS 表示 ---
-        # self.crs_var = tk.StringVar(value="CRS: 未取得")
-        # tk.Label(self, textvariable=self.crs_var).grid(row=3, column=0, columnspan=2, sticky='w', padx=5)
+        # --- 出力ファイル選択 ---
+        ttk.Label(self, text="出力ファイル (.asc):", width=LABEL_WIDTH, anchor='e')\
+            .grid(row=3, column=0, padx=5, pady=5, sticky='e')
+        self.output_path_var = tk.StringVar()
+        ttk.Entry(self, textvariable=self.output_path_var, width=ENTRY_WIDTH, state='readonly')\
+            .grid(row=3, column=1, sticky='we', padx=5, pady=5)
+        ttk.Button(self, text="参照", command=self.select_output_file, width=BUTTON_WIDTH)\
+            .grid(row=3, column=2, padx=5, pady=5)
 
-        # --- 出力フォルダ選択 ---
-        self.output_dir_var = tk.StringVar()
-        tk.Button(self, text="出力フォルダ選択", command=self.select_output).grid(row=6, column=0, padx=5, pady=5)
-        tk.Label(self, textvariable=self.output_dir_var).grid(row=6, column=1, sticky='w')
-
-        # --- グリッド情報表示用フレーム ---
-        self.info_frame = ttk.LabelFrame(self, text="グリッド情報 (参考値)", padding=5)
-        self.info_frame.grid(row=7, column=0, columnspan=2, sticky='ew',padx=5, pady=5)
-        
-        # グリッド情報表示用のラベル
-        self.grid_info_var = tk.StringVar(value="シェープファイルを選択するとグリッド情報が表示されます")
-        self.grid_info_label = ttk.Label(
-            self.info_frame,
-            textvariable=self.grid_info_var,
-            wraplength=400,
-            justify='left',
-            foreground='gray30'
-        )
-        self.grid_info_label.pack(fill='x')
+        # --- グリッド情報表示 ---
+        self.info_frame = ttk.LabelFrame(self, text="グリッド情報 (参考)", padding=10)
+        self.info_frame.grid(row=5, column=0, columnspan=3, sticky='nsew', padx=5, pady=5)
+        self.grid_info_var = tk.StringVar(value="シェープファイル選択後に表示されます")
+        ttk.Label(self.info_frame, textvariable=self.grid_info_var, wraplength=600, justify='left')\
+            .pack(fill='both', expand=True)
 
         # --- 実行ボタン ---
-        tk.Button(self, text="実行", command=self.run_conversion).grid(row=8, column=0, columnspan=2, pady=10)
+        self.run_button = ttk.Button(self, text="実行", command=self.run_conversion, width=BUTTON_WIDTH)
+        self.run_button.grid(row=6, column=1, sticky='e', padx=5, pady=10)
 
     def select_input(self):
         path = filedialog.askopenfilename(filetypes=[("Shapefile", "*.shp")])
@@ -58,44 +70,43 @@ class ShpToAscApp(tk.Tk):
             return
         self.input_path_var.set(path)
         try:
-            # フィールド一覧取得
             with fiona.open(path) as src:
                 fields = list(src.schema['properties'].keys())
             self.field_cb['values'] = fields
-            # # CRS 取得
-            # crs = read_crs(path)
-            # self.crs_var.set(f"CRS: {crs}")
         except Exception as e:
-            messagebox.showerror("エラー", f"シェープファイルの読み込みに失敗しました:\n{e}")
+            messagebox.showerror("エラー", f"シェープファイル読み込み失敗:\n{e}")
             return
-
-        # --- セルサイズ自動計算 & GUI 反映 ---
         try:
             grid_info = analyze_grid_structure(path)
-            
-            # グリッド情報を表示
             info_text = (
-                f"セル数: {grid_info['ncols']} (列) × {grid_info['nrows']} (行)\n"
+                f"セル数: {grid_info['ncols']} × {grid_info['nrows']}\n"
                 f"平均セルサイズ: dx={grid_info['cell_size_x']:.8f}, dy={grid_info['cell_size_y']:.8f}\n"
-                f"グリッド範囲: X={grid_info['extent'][0]:.6f} 〜 {grid_info['extent'][2]:.6f}, "
-                f"Y={grid_info['extent'][1]:.6f} 〜 {grid_info['extent'][3]:.6f}"
+                f"範囲: X={grid_info['extent'][0]:.6f}〜{grid_info['extent'][2]:.6f}, "
+                f"Y={grid_info['extent'][1]:.6f}〜{grid_info['extent'][3]:.6f}"
             )
             self.grid_info_var.set(info_text)
-            
         except Exception as e:
-            self.grid_info_var.set(f"グリッド情報の取得中にエラーが発生しました: {str(e)}")
-            messagebox.showwarning("警告", f"セルサイズの自動計算に失敗しました。手動で入力してください:\n{e}")
+            self.grid_info_var.set("グリッド情報取得エラー")
+            messagebox.showwarning("警告", f"セルサイズ自動計算失敗:\n{e}")
 
-    def select_output(self):
-        directory = filedialog.askdirectory()
-        if not directory:
-            return
-        self.output_dir_var.set(directory)
+    def select_output_file(self):
+        input_shp = self.input_path_var.get()
+        initial_dir = os.path.dirname(input_shp) if input_shp else ''
+        initial_file = os.path.splitext(os.path.basename(input_shp))[0] if input_shp else ''
+
+        path = filedialog.asksaveasfilename(
+            initialdir=initial_dir,
+            initialfile=initial_file,
+            filetypes=[("ASCII Grid", "*.asc")],
+            defaultextension=".asc"
+        )
+        if path:
+            self.output_path_var.set(path)
 
     def run_conversion(self):
         shp = self.input_path_var.get()
         if not shp:
-            messagebox.showwarning("警告", "入力シェープファイルを選択してください")
+            messagebox.showwarning("警告", "入力ファイルを選択してください")
             return
         field = self.field_cb.get()
         if not field:
@@ -105,39 +116,31 @@ class ShpToAscApp(tk.Tk):
         try:
             nodata = float(nodata)
         except ValueError:
-            messagebox.showwarning("警告", "NoData 値は数値で入力してください")
+            messagebox.showwarning("警告", "NoDataは数値で入力してください")
             return
-        outdir = self.output_dir_var.get()
-        if not outdir:
-            messagebox.showwarning("警告", "出力フォルダを選択してください")
+        outpath = self.output_path_var.get()
+        if not outpath:
+            messagebox.showwarning("警告", "出力ファイルを選択してください")
             return
-
-
-        # 出力ファイル名自動生成
-        base = os.path.splitext(os.path.basename(shp))[0]
-        outpath = get_available_filename(outdir, base, ".asc")
-
-        # 変換実行
         try:
-            ncols, nrows, actual_dx, actual_dy = shp_to_ascii(
+            ncols, nrows, dx, dy = shp_to_ascii(
                 shp_path=shp,
                 field=field,
                 nodata=nodata,
                 output_path=outpath
             )
-            # 実際のグリッド数を表示
             messagebox.showinfo(
                 "完了",
-                f"変換が完了しました:\n"
-                f"出力先: {outpath}\n\n"
-                f"使用されたセル数:\n"
-                f"ncols, nrows = {ncols}, {nrows}\n"
-                f"使用されたセルサイズ:\n"
-                f"dx, dy = {actual_dx:.12f}, {actual_dy:.12f}\n"
+                f"出力先: {outpath}\n"
+                f"セル数: {ncols} × {nrows}\n"
+                f"セルサイズ: dx={dx:.12f}, dy={dy:.12f}"
             )
         except Exception as e:
             messagebox.showerror("エラー", f"変換中にエラーが発生しました:\n{e}")
 
-if __name__ == "__main__":
-    app = ShpToAscApp()
-    app.mainloop()
+if __name__ == '__main__':
+    root = tk.Tk()
+    root.columnconfigure(1, weight=1)
+    root.rowconfigure(5, weight=1)
+    app = ShpToAscApp(root)
+    root.mainloop()

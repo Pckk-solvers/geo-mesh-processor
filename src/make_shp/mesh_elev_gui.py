@@ -8,7 +8,8 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 
 # ヘルパー関数を外部から参照する場合はモジュール化しても良い
-from add_elevation import get_xy_columns, get_z_candidates
+from .add_elevation import get_xy_columns, get_z_candidates
+from .generate_mesh import build_grid
 
 class MeshElevApp(ttk.Frame):
     def __init__(self, master):
@@ -81,7 +82,7 @@ class MeshElevApp(ttk.Frame):
         # 出力フォルダ
         ttk.Label(self, text='出力フォルダ:', width=LABEL_WIDTH, anchor='e') \
             .grid(row=6, column=0, padx=5, pady=5)
-        self.outdir_var = tk.StringVar(value=os.path.join(os.getcwd(), 'outputs'))
+        self.outdir_var = tk.StringVar(value="")
         ttk.Entry(self, textvariable=self.outdir_var, width=ENTRY_WIDTH, state='readonly') \
             .grid(row=6, column=1, padx=5, pady=5, sticky='w')
         ttk.Button(self, text='参照', command=self.browse_outdir, width=BUTTON_WIDTH) \

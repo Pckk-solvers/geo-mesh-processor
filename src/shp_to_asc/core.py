@@ -164,6 +164,9 @@ def shp_to_ascii(shp_path, field, nodata, output_path, bounds=None):
         transform=transform,
         dtype='float32'
     )
+
+    # NoData以外の値を小数点以下4桁に丸める
+    raster[raster != nodata] = np.round(raster[raster != nodata], 4)
     out_dir = os.path.dirname(output_path)
     if out_dir and not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)

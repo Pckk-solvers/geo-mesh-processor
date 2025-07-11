@@ -5,7 +5,6 @@
 流域界ポリゴンでクリップした 2 種類のメッシュを Shapefile 出力
 """
 import argparse
-import math
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import box
