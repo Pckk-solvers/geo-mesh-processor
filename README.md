@@ -13,3 +13,6 @@ src<br>
  ┃ ┣ core.py<br>
  ┃ ┣ gui.py<br>
  ┃ ┗ utils.py<br>
+
+
+ほかのアカウントでコミットした場合はどうなるかをテスト
