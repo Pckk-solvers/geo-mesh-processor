@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 import os
-import sys
-import subprocess
 import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, messagebox
-from tkinter import ttk
+from tkinter import filedialog, messagebox, ttk
+import threading
+import queue
 
-# ヘルパー関数を外部から参照する場合はモジュール化しても良い
 from .add_elevation import get_xy_columns, get_z_candidates
-from .generate_mesh import build_grid
+from .pipeline import pipeline
 
 class MeshElevApp(ttk.Frame):
     def __init__(self, master):
@@ -88,9 +87,12 @@ class MeshElevApp(ttk.Frame):
         ttk.Button(self, text='参照', command=self.browse_outdir, width=BUTTON_WIDTH) \
             .grid(row=6, column=2, padx=5, pady=5)
 
-        # 実行ボタン
+        # 実行ボタンとステータス
+        self.status_var = tk.StringVar()
+        ttk.Label(self, textvariable=self.status_var, anchor='w').grid(row=8, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
         self.run_button = ttk.Button(self, text='実行', command=self.run_process, width=BUTTON_WIDTH)
-        self.run_button.grid(row=7, column=1, padx=5, pady=15, sticky='e')
+        self.run_button.grid(row=8, column=2, sticky='e', padx=5, pady=10)
 
     def browse_domain(self):
         p = filedialog.askopenfilename(filetypes=[('Shapefile','*.shp')])
@@ -130,44 +132,66 @@ class MeshElevApp(ttk.Frame):
             self.z_var.set(cands[0])
 
     def run_process(self):
-        domain = self.domain_var.get()
-        basin = self.basin_var.get()
-        points = self.points_var.get()
-        z_col = self.z_var.get()
-        cells_x = self.cells_x_var.get()
-        cells_y = self.cells_y_var.get()
-        outdir = self.outdir_var.get()
+        args = {
+            'domain_shp': self.domain_var.get(),
+            'basin_shp': self.basin_var.get(),
+            'points_path': self.points_var.get(),
+            'zcol': self.z_var.get(),
+            'cells_x_str': self.cells_x_var.get(),
+            'cells_y_str': self.cells_y_var.get(),
+            'out_dir': self.outdir_var.get()
+        }
 
-        # 入力チェック
-        if not all([domain, basin, points, z_col, cells_x, cells_y, outdir]):
-            messagebox.showerror('エラー','全ての項目を入力してください')
+        if not all(args.values()):
+            messagebox.showerror('エラー', '全ての項目を入力してください')
             return
         try:
-            ix, iy = int(cells_x), int(cells_y)
-            if ix <= 0 or iy <= 0:
+            args['cells_x'] = int(args['cells_x_str'])
+            args['cells_y'] = int(args['cells_y_str'])
+            if args['cells_x'] <= 0 or args['cells_y'] <= 0:
                 raise ValueError
         except ValueError:
-            messagebox.showerror('エラー','セル数は正の整数を入力してください')
+            messagebox.showerror('エラー', 'セル数は正の整数を入力してください')
             return
 
-        os.makedirs(outdir, exist_ok=True)
+        self.run_button.config(state='disabled')
+        self.status_var.set("処理中...")
+        self.result_queue = queue.Queue()
 
-        cmd = [
-            sys.executable,
-            os.path.join(os.path.dirname(__file__), 'pipeline.py'),
-            '--domain', domain,
-            '--basin', basin,
-            '--cells_x', str(ix),
-            '--cells_y', str(iy),
-            '--points', points,
-            '--zcol', z_col,
-            '--outdir', outdir
-        ]
+        threading.Thread(
+            target=self._pipeline_worker,
+            args=(args,)
+        ).start()
+
+        self.master.after(100, self.check_queue)
+
+    def _pipeline_worker(self, args):
         try:
-            subprocess.check_call(cmd)
-            messagebox.showinfo('完了','メッシュ生成と標高付与が完了しました！')
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror('エラー', f'処理中にエラーが発生しました: {e}')
+            pipeline(
+                domain_shp=args['domain_shp'],
+                basin_shp=args['basin_shp'],
+                num_cells_x=args['cells_x'],
+                num_cells_y=args['cells_y'],
+                points_path=args['points_path'],
+                zcol=args['zcol'],
+                out_dir=args['out_dir']
+            )
+            self.result_queue.put(('success', 'メッシュ生成と標高付与が完了しました！'))
+        except Exception as e:
+            self.result_queue.put(('error', e))
+
+    def check_queue(self):
+        try:
+            message_type, data = self.result_queue.get_nowait()
+            self.run_button.config(state='normal')
+            self.status_var.set("完了")
+
+            if message_type == 'success':
+                messagebox.showinfo('完了', data)
+            elif message_type == 'error':
+                messagebox.showerror('エラー', f'処理中にエラーが発生しました: {data}')
+        except queue.Empty:
+            self.master.after(100, self.check_queue)
 
 if __name__ == '__main__':
     root = tk.Tk()

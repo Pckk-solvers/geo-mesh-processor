@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import os
 import argparse
-from generate_mesh import main as generate_main
-from add_elevation   import main as elevation_main
+from .generate_mesh import main as generate_main
+from .add_elevation   import main as elevation_main
 
-def pipeline(domain_shp, basin_shp, cells_x, cells_y, points_path, out_dir, zcol=None):
+def pipeline(domain_shp, basin_shp, num_cells_x, num_cells_y, points_path, out_dir, zcol=None):
     # 1) メッシュ生成
     print("=== メッシュ生成 ===")
-    generate_main(domain_shp, basin_shp, cells_x, cells_y, out_dir)
+    generate_main(domain_shp, basin_shp, num_cells_x, num_cells_y, out_dir)
 
     # 2) 標高付与
     basin_mesh  = os.path.join(out_dir, "basin_mesh.shp")

@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import fiona
 import os
+import threading
+import queue
 from .core import analyze_grid_structure, shp_to_ascii
 from .utils import get_available_filename
 
@@ -60,9 +62,12 @@ class ShpToAscApp(ttk.Frame):
         ttk.Label(self.info_frame, textvariable=self.grid_info_var, wraplength=600, justify='left')\
             .pack(fill='both', expand=True)
 
-        # --- 実行ボタン ---
+        # --- 実行ボタンとステータス --- 
+        self.status_var = tk.StringVar()
+        ttk.Label(self, textvariable=self.status_var, anchor='w').grid(row=6, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+
         self.run_button = ttk.Button(self, text="実行", command=self.run_conversion, width=BUTTON_WIDTH)
-        self.run_button.grid(row=6, column=1, sticky='e', padx=5, pady=10)
+        self.run_button.grid(row=6, column=2, sticky='e', padx=5, pady=10)
 
     def select_input(self):
         path = filedialog.askopenfilename(filetypes=[("Shapefile", "*.shp")])
@@ -112,9 +117,9 @@ class ShpToAscApp(ttk.Frame):
         if not field:
             messagebox.showwarning("警告", "属性フィールドを選択してください")
             return
-        nodata = self.nodata_var.get()
+        nodata_str = self.nodata_var.get()
         try:
-            nodata = float(nodata)
+            nodata = float(nodata_str)
         except ValueError:
             messagebox.showwarning("警告", "NoDataは数値で入力してください")
             return
@@ -122,21 +127,55 @@ class ShpToAscApp(ttk.Frame):
         if not outpath:
             messagebox.showwarning("警告", "出力ファイルを選択してください")
             return
+
+        # GUIを更新し、スレッドを開始
+        self.run_button.config(state='disabled')
+        self.status_var.set("処理中...")
+        self.result_queue = queue.Queue()
+
+        threading.Thread(
+            target=self._conversion_worker,
+            args=(shp, field, nodata, outpath)
+        ).start()
+
+        self.master.after(100, self.check_queue)
+
+    def _conversion_worker(self, shp, field, nodata, outpath):
+        """ワーカースレッドで実行される変換処理"""
         try:
-            ncols, nrows, dx, dy = shp_to_ascii(
+            result = shp_to_ascii(
                 shp_path=shp,
                 field=field,
                 nodata=nodata,
                 output_path=outpath
             )
-            messagebox.showinfo(
-                "完了",
-                f"出力先: {outpath}\n"
-                f"セル数: {ncols} × {nrows}\n"
-                f"セルサイズ: dx={dx:.12f}, dy={dy:.12f}"
-            )
+            self.result_queue.put(('success', result, outpath))
         except Exception as e:
-            messagebox.showerror("エラー", f"変換中にエラーが発生しました:\n{e}")
+            self.result_queue.put(('error', e))
+
+    def check_queue(self):
+        """キューをチェックしてGUIを更新する"""
+        try:
+            # キューからノンブロッキングでアイテムを取得
+            message_type, data, *optional_data = self.result_queue.get_nowait()
+            self.run_button.config(state='normal')
+            self.status_var.set("完了")
+
+            if message_type == 'success':
+                ncols, nrows, dx, dy = data
+                outpath = optional_data[0]
+                messagebox.showinfo(
+                    "完了",
+                    f"出力先: {outpath}\n"
+                    f"セル数: {ncols} × {nrows}\n"
+                    f"セルサイズ: dx={dx:.12f}, dy={dy:.12f}"
+                )
+            elif message_type == 'error':
+                messagebox.showerror("エラー", f"変換中にエラーが発生しました:\n{data}")
+
+        except queue.Empty:
+            # キューが空なら、100ms後にもう一度チェック
+            self.master.after(100, self.check_queue)
 
 if __name__ == '__main__':
     root = tk.Tk()

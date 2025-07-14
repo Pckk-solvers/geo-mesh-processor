@@ -1,0 +1,1 @@
+pyinstaller --name shp_asc_converter --onedir --noconfirm src/app.py
