@@ -1,1 +1,3 @@
-pyinstaller --name shp_asc_converter --onedir --noconfirm src/app.py
+pyinstaller --name shp_asc_converter --onedir --noconfirm src/app.py --hidden-import=rasterio._shim --hidden-import=rasterio.sample
+
+pyinstaller --name shp_asc_converter --onedir --hidden-import=rasterio._shim --hidden-import=rasterio.sample --add-data "./venv/Lib/site-packages/geopandas;geopandas" --add-data "./venv/Lib/site-packages/pyproj;pyproj" --add-data "./venv/Lib/site-packages/rasterio;rasterio" --noconfirm src/app.py

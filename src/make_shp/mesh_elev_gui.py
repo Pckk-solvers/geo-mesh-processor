@@ -7,8 +7,8 @@ from tkinter import filedialog, messagebox, ttk
 import threading
 import queue
 
-from .add_elevation import get_xy_columns, get_z_candidates
-from .pipeline import pipeline
+from src.make_shp.add_elevation import get_xy_columns, get_z_candidates
+from src.make_shp.pipeline import pipeline
 
 class MeshElevApp(ttk.Frame):
     def __init__(self, master):

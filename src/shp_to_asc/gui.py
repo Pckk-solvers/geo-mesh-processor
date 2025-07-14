@@ -4,8 +4,8 @@ import fiona
 import os
 import threading
 import queue
-from .core import analyze_grid_structure, shp_to_ascii
-from .utils import get_available_filename
+from src.shp_to_asc.core import analyze_grid_structure, shp_to_ascii
+from src.shp_to_asc.utils import get_available_filename
 
 class ShpToAscApp(ttk.Frame):
     def __init__(self, master):

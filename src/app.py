@@ -4,13 +4,12 @@ import sys
 import os
 
 try:
-    from .shp_to_asc.gui import ShpToAscApp
-    from .make_shp.mesh_elev_gui import MeshElevApp
+    from src.shp_to_asc.gui import ShpToAscApp
+    from src.make_shp.mesh_elev_gui import MeshElevApp
 except ImportError as e:
     # モジュールが見つからない場合に備えて、分かりやすいエラーメッセージを表示します
     print(f"エラー: GUIモジュールのインポートに失敗しました。 {e}")
     print("'src' ディレクトリが存在し、必要なスクリプトが含まれていることを確認してください。")
-    sys.exit(1)
 
 
 class MainLauncher:
