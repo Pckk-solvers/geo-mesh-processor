@@ -165,25 +165,40 @@ def shp_to_ascii(shp_path, field, nodata, output_path, bounds=None):
         dtype='float32'
     )
 
-    # NoData以外の値を小数点以下3桁に丸める
+    # NoData以外の値を小数点以下4桁に丸める
     raster[raster != nodata] = np.round(raster[raster != nodata], 3)
+    # 1. rasterioで一度ファイルを出力する（.prjファイルも自動生成される）
     out_dir = os.path.dirname(output_path)
     if out_dir and not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)
-    # .ascファイルを手動で書き出す
+
+    profile = {
+        'driver': 'AAIGrid',
+        'height': nrows,
+        'width': ncols,
+        'count': 1,
+        'dtype': 'float32',
+        'transform': transform,
+        'nodata': nodata,
+        'crs': gdf.crs
+    }
+    with rasterio.open(output_path, 'w', **profile) as dst:
+        dst.write(raster, 1)
+
+    # 2. 出力した.ascファイルを整形して上書きする
     header = (
-        f"ncols        {ncols}\n"
-        f"nrows        {nrows}\n"
-        f"xllcorner    {grid_minx}\n"
-        f"yllcorner    {grid_miny}\n"
-        f"cellsize     {dx}\n"
+        f"ncols {ncols}\n"
+        f"nrows {nrows}\n"
+        f"xllcorner {grid_minx}\n"
+        f"yllcorner {grid_miny}\n"
+        f"dx {dx}\n"
+        f"dy {dy}\n"
         f"NODATA_value {nodata}\n"
     )
-
     with open(output_path, 'w') as f:
         f.write(header)
-        np.savetxt(f, raster, fmt='%10.3f')
-    
+        np.savetxt(f, raster, fmt='%12.3f')
+
     # 実際のグリッド数を返す
     return ncols, nrows, dx, dy
 
