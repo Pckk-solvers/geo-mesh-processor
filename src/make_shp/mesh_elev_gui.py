@@ -77,6 +77,13 @@ class MeshElevApp(ttk.Frame):
         self.cells_y_var = tk.StringVar()
         ttk.Entry(self, textvariable=self.cells_y_var, width=10) \
             .grid(row=5, column=1, padx=5, pady=5, sticky='w')
+            
+        # NODATA値
+        ttk.Label(self, text='NODATA値:', width=LABEL_WIDTH, anchor='e') \
+            .grid(row=6, column=0, padx=5, pady=5)
+        self.nodata_var = tk.StringVar(value="-9999")
+        ttk.Entry(self, textvariable=self.nodata_var, width=10) \
+            .grid(row=6, column=1, padx=5, pady=5, sticky='w')
 
         # 出力フォルダ
         ttk.Label(self, text='出力フォルダ:', width=LABEL_WIDTH, anchor='e') \
@@ -139,7 +146,8 @@ class MeshElevApp(ttk.Frame):
             'zcol': self.z_var.get(),
             'cells_x_str': self.cells_x_var.get(),
             'cells_y_str': self.cells_y_var.get(),
-            'out_dir': self.outdir_var.get()
+            'out_dir': self.outdir_var.get(),
+            'nodata': self.nodata_var.get()
         }
 
         if not all(args.values()):
@@ -174,7 +182,8 @@ class MeshElevApp(ttk.Frame):
                 num_cells_y=args['cells_y'],
                 points_path=args['points_path'],
                 zcol=args['zcol'],
-                out_dir=args['out_dir']
+                out_dir=args['out_dir'],
+                nodata=float(args['nodata']) if args['nodata'] else None
             )
             self.result_queue.put(('success', 'メッシュ生成と標高付与が完了しました！'))
         except Exception as e:

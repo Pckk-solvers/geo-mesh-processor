@@ -8,8 +8,7 @@ import argparse
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
-
-NODATA = -9999
+from shp_to_asc.core import DEFAULT_NODATA
 
 
 def get_xy_columns(df):
@@ -97,7 +96,10 @@ def load_points(path, target_crs, zcol_arg=None):
     
     return gdf
 
-def main(basin_shp, domain_shp, points_path, out_dir, zcol=None):
+def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
+    # Nodata値が指定されていない場合はデフォルト値を使用
+    if nodata is None:
+        nodata = DEFAULT_NODATA
     # 1. ベースとなるポリゴンデータの読み込み
     basin = gpd.read_file(basin_shp)
     print(f"ベースのCRS: {basin.crs}")
@@ -135,16 +137,16 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None):
     print(point_count.head())
 
     # basinに標高と点数を追加
-    basin["elevation"] = basin.index.map(mean_elev).fillna(NODATA)
+    basin["elevation"] = basin.index.map(mean_elev).fillna(nodata)
     basin["pnt_count"] = basin.index.map(point_count).fillna(0).astype(int)
     
     # 空間結合でdomainとbasinをマッチング
     domain = gpd.sjoin(domain, basin[["elevation", "pnt_count", "geometry"]], how="left", predicate="within")
-    
-    domain = domain[["elevation", "pnt_count", "geometry"]].dissolve(by=domain.index).reset_index()
-    domain["elevation"] = domain["elevation"].fillna(NODATA)
-    domain["pnt_count"] = domain["pnt_count"].fillna(0).astype(int)
-    
+    # 流域外のセルにnodataを設定
+    domain = domain.merge(basin, on=['I', 'J'], how='left', indicator=True)
+    domain['elevation'] = domain.apply(lambda x: x['elevation'] if x['_merge'] == 'both' else nodata, axis=1)
+    domain['pnt_count'] = domain.apply(lambda x: x['pnt_count'] if x['_merge'] == 'both' else 0, axis=1)
+    domain = domain.drop(columns=['_merge'])
 
     # 出力フォルダを作成
     import os

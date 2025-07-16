@@ -5,7 +5,6 @@ import os
 import threading
 import queue
 from src.shp_to_asc.core import analyze_grid_structure, shp_to_ascii
-from src.shp_to_asc.utils import get_available_filename
 
 class ShpToAscApp(ttk.Frame):
     def __init__(self, master):
@@ -146,8 +145,8 @@ class ShpToAscApp(ttk.Frame):
             result = shp_to_ascii(
                 shp_path=shp,
                 field=field,
-                nodata=nodata,
-                output_path=outpath
+                output_path=outpath,
+                nodata=nodata
             )
             self.result_queue.put(('success', result, outpath))
         except Exception as e:
