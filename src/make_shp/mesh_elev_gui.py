@@ -34,6 +34,9 @@ class MeshElevApp(ttk.Frame):
         # ウィジェット生成（ここで PanedWindow → left_frame/help_frame を構築）
         self.create_widgets()
         
+        self.master.update_idletasks()
+        self.master.minsize(self.master.winfo_width(), self.master.winfo_height())
+        
     def create_widgets(self):
         # ── PanedWindow で左右分割 ──
         paned = ttk.PanedWindow(self, orient='horizontal')
@@ -44,7 +47,7 @@ class MeshElevApp(ttk.Frame):
         paned.add(left_frame, weight=0)   # weight=0 → 固定幅
 
         # ── 右ペイン：ヘルプガイド用フレーム ──
-        help_frame = ttk.LabelFrame(paned, text='使い方ガイド', width=250)
+        help_frame = ttk.LabelFrame(paned, text='使い方ガイド')
         paned.add(help_frame, weight=1)   # weight=1 → 伸縮対象
 
         # --- 左側入力群 ---
@@ -82,8 +85,8 @@ class MeshElevApp(ttk.Frame):
                    width=BUTTON_WIDTH) \
             .grid(row=1, column=2, padx=5, pady=5)
 
-        # 点群データ (.csv/.shp)
-        ttk.Label(left_frame, text='点群データ (.csv/.shp):',
+        # 点群データ (.csv)
+        ttk.Label(left_frame, text='点群データ (.csv):',
                   width=LABEL_WIDTH, anchor='e') \
             .grid(row=2, column=0, padx=5, pady=5)
         self.points_var = tk.StringVar()
@@ -158,10 +161,10 @@ class MeshElevApp(ttk.Frame):
                   anchor='w') \
             .grid(row=8, column=0, columnspan=2,
                   sticky='we', padx=5, pady=10)
-        ttk.Button(left_frame, text='実行',
+        self.run_button = ttk.Button(left_frame, text='実行',
                    command=self.run_process,
-                   width=BUTTON_WIDTH) \
-            .grid(row=8, column=2, sticky='e',
+                   width=BUTTON_WIDTH)
+        self.run_button.grid(row=8, column=2, sticky='e',
                   padx=5, pady=10)
 
         # ヘルプパネル生成の直前にフォントを定義
@@ -170,10 +173,10 @@ class MeshElevApp(ttk.Frame):
         # ── ヘルプテキスト ──
         self.help_text = scrolledtext.ScrolledText(
             help_frame,
-            wrap='word',
+            wrap='none',
             font=help_font,        # ← ここで指定
-            width=30,
-            height=20,
+            width=25,
+            height=10,
             state='disabled'
         )
         self.help_text.pack(fill='both', expand=True, padx=5, pady=5)

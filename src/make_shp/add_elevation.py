@@ -8,8 +8,7 @@ import argparse
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
-
-DEFAULT_NODATA = -9999
+from src.shp_to_asc.gui import DEFAULT_NODATA
 
 
 def get_xy_columns(df):
@@ -143,11 +142,12 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
     
     # 空間結合でdomainとbasinをマッチング
     domain = gpd.sjoin(domain, basin[["elevation", "pnt_count", "geometry"]], how="left", predicate="within")
-    # 流域外のセルにnodataを設定
-    domain = domain.merge(basin, on=['I', 'J'], how='left', indicator=True)
-    domain['elevation'] = domain.apply(lambda x: x['elevation'] if x['_merge'] == 'both' else nodata, axis=1)
-    domain['pnt_count'] = domain.apply(lambda x: x['pnt_count'] if x['_merge'] == 'both' else 0, axis=1)
-    domain = domain.drop(columns=['_merge'])
+    # 流域外は nodata / 0 に置き換え
+    domain['elevation'] = domain['elevation'].fillna(nodata)
+    domain['pnt_count'] = domain['pnt_count'].fillna(0).astype(int)
+    
+    # 不要な列（index_right, geometry_right など）を削除
+    domain = domain.drop(columns=['index_right', 'geometry_right'], errors='ignore')
 
     # 出力フォルダを作成
     import os

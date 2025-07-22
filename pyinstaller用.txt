@@ -1,14 +1,14 @@
 バージョン番号を加えるかどうか
 
-pyinstaller \
---name shp_asc_converter \
---onedir \
---console \
---hidden-import=rasterio._shim \
---hidden-import=rasterio.sample \
---add-data "./venv/Lib/site-packages/geopandas;geopandas" \
---add-data "./venv/Lib/site-packages/pyproj;pyproj" \
---add-data "./venv/Lib/site-packages/rasterio;rasterio" \
+pyinstaller 
+--name shp_asc_converter `
+--onedir `
+--console `
+--hidden-import=rasterio._shim `
+--hidden-import=rasterio.sample `
+--add-data "./venv/Lib/site-packages/geopandas;geopandas" `
+--add-data "./venv/Lib/site-packages/pyproj;pyproj" `
+--add-data "./venv/Lib/site-packages/rasterio;rasterio" `
 --noconfirm src/app.py
 
-pyinstaller --onefile --name=mesh_tool -w run.py
+pyinstaller --onefile --name=mesh_tool -w --hidden-import=rasterio.sample run.py
