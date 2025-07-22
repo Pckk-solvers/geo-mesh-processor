@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import argparse
+import glob
 from src.make_shp.generate_mesh import main as generate_main
 from src.make_shp.add_elevation import main as elevation_main
 
@@ -14,6 +15,16 @@ def pipeline(domain_shp, basin_shp, num_cells_x, num_cells_y, points_path, out_d
     domain_mesh = os.path.join(out_dir, "domain_mesh.shp")
     print("=== 標高付与 ===")
     elevation_main(basin_mesh, domain_mesh, points_path, out_dir, zcol, nodata)
+    
+    # 3) 中間ファイルをまとめて削除
+    try:
+        for basename in ("domain_mesh", "basin_mesh"):
+            pattern = os.path.join(out_dir, f"{basename}.*")
+            for fp in glob.glob(pattern):
+                os.remove(fp)
+    except Exception as e:
+        print(f"[WARNING] 中間ファイルの削除中にエラーが発生しました: {e}")
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
