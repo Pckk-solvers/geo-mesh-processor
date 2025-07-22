@@ -98,10 +98,7 @@ def analyze_grid_structure(shp_path):
 
 
 
-# デフォルトのNODATA値
-DEFAULT_NODATA = -9999
-
-def shp_to_ascii(shp_path, field, output_path, nodata=DEFAULT_NODATA, bounds=None):
+def shp_to_ascii(shp_path, field, output_path, nodata=None, bounds=None):
     """
     ShapefileをESRI ASCII Grid形式(.asc)に変換
     グリッド数は入力シェープファイルのフィーチャに基づいて自動設定される

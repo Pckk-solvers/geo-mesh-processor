@@ -2,7 +2,7 @@
 import os
 import argparse
 from src.make_shp.generate_mesh import main as generate_main
-from src.make_shp.add_elevation   import main as elevation_main
+from src.make_shp.add_elevation import main as elevation_main
 
 def pipeline(domain_shp, basin_shp, num_cells_x, num_cells_y, points_path, out_dir, zcol=None, nodata=None):
     # 1) メッシュ生成

@@ -4,7 +4,12 @@ import fiona
 import os
 import threading
 import queue
+
+# 絶対インポートに変更
 from src.shp_to_asc.core import analyze_grid_structure, shp_to_ascii
+
+# デフォルトのNODATA値
+DEFAULT_NODATA = -9999
 
 class ShpToAscApp(ttk.Frame):
     def __init__(self, master):
@@ -41,7 +46,7 @@ class ShpToAscApp(ttk.Frame):
         # --- NoData 値設定 ---
         ttk.Label(self, text="NoData 値:", width=LABEL_WIDTH, anchor='e')\
             .grid(row=2, column=0, padx=5, pady=5, sticky='e')
-        self.nodata_var = tk.StringVar(value="-9999")
+        self.nodata_var = tk.StringVar(value=str(DEFAULT_NODATA))
         ttk.Entry(self, textvariable=self.nodata_var, width=ENTRY_WIDTH)\
             .grid(row=2, column=1, sticky='w', padx=5, pady=5)
 
@@ -113,58 +118,65 @@ class ShpToAscApp(ttk.Frame):
             messagebox.showwarning("警告", "入力ファイルを選択してください")
             return
         field = self.field_cb.get()
-        if not field:
-            messagebox.showwarning("警告", "属性フィールドを選択してください")
-            return
-        nodata_str = self.nodata_var.get()
         try:
-            nodata = float(nodata_str)
-        except ValueError:
-            messagebox.showwarning("警告", "NoDataは数値で入力してください")
-            return
-        outpath = self.output_path_var.get()
-        if not outpath:
-            messagebox.showwarning("警告", "出力ファイルを選択してください")
-            return
+            shp_path = self.input_path_var.get()
+            field = self.field_cb.get()
+            output_path = self.output_path_var.get()
+            
+            # NoData値が空の場合はデフォルト値を使用
+            nodata_str = self.nodata_var.get().strip()
+            nodata = float(nodata_str) if nodata_str else DEFAULT_NODATA
 
-        # GUIを更新し、スレッドを開始
-        self.run_button.config(state='disabled')
-        self.status_var.set("処理中...")
-        self.result_queue = queue.Queue()
+            if not all([shp_path, field, output_path]):
+                messagebox.showwarning("警告", "必須フィールドを入力してください。")
+                return
 
-        threading.Thread(
-            target=self._conversion_worker,
-            args=(shp, field, nodata, outpath)
-        ).start()
-
-        self.master.after(100, self.check_queue)
-
-    def _conversion_worker(self, shp, field, nodata, outpath):
-        """ワーカースレッドで実行される変換処理"""
-        try:
-            result = shp_to_ascii(
-                shp_path=shp,
-                field=field,
-                output_path=outpath,
-                nodata=nodata
+            # バックグラウンドで実行
+            self.queue = queue.Queue()
+            self.thread = threading.Thread(
+                target=self._run_conversion,
+                args=(shp_path, field, output_path, nodata),
+                daemon=True
             )
-            self.result_queue.put(('success', result, outpath))
-        except Exception as e:
-            self.result_queue.put(('error', e))
+            self.thread.start()
+            self.master.after(100, self._check_queue)
 
-    def check_queue(self):
+        except ValueError:
+            messagebox.showerror("エラー", "NoData値は数値で指定してください。")
+        except Exception as e:
+            messagebox.showerror("エラー", f"予期せぬエラーが発生しました: {e}")
+
+    def _run_conversion(self, shp_path, field, output_path, nodata):
+        """変換を実行する内部メソッド"""
+        try:
+            # グリッド情報を取得
+            grid_info = analyze_grid_structure(shp_path)
+            # 変換を実行
+            shp_to_ascii(shp_path, field, output_path, nodata)
+            # グリッド情報をキューに渡す
+            self.queue.put(("success", (
+                grid_info['ncols'],
+                grid_info['nrows'],
+                grid_info['cell_size_x'],
+                grid_info['cell_size_y'],
+                output_path
+            )))
+        except Exception as e:
+            self.queue.put(("error", str(e)))
+
+    def _check_queue(self):
         """キューをチェックしてGUIを更新する"""
         try:
             # キューからノンブロッキングでアイテムを取得
-            message_type, data, *optional_data = self.result_queue.get_nowait()
+            message_type, data = self.queue.get_nowait()
             self.run_button.config(state='normal')
             self.status_var.set("完了")
 
             if message_type == 'success':
-                ncols, nrows, dx, dy = data
-                outpath = optional_data[0]
+                ncols, nrows, dx, dy, outpath = data
                 messagebox.showinfo(
                     "完了",
+                    f"変換が完了しました。\n\n"
                     f"出力先: {outpath}\n"
                     f"セル数: {ncols} × {nrows}\n"
                     f"セルサイズ: dx={dx:.12f}, dy={dy:.12f}"
@@ -174,11 +186,13 @@ class ShpToAscApp(ttk.Frame):
 
         except queue.Empty:
             # キューが空なら、100ms後にもう一度チェック
-            self.master.after(100, self.check_queue)
+            self.master.after(100, self._check_queue)
 
-if __name__ == '__main__':
+def main():
     root = tk.Tk()
-    root.columnconfigure(1, weight=1)
-    root.rowconfigure(5, weight=1)
     app = ShpToAscApp(root)
     root.mainloop()
+
+if __name__ == '__main__':
+    main()
+

@@ -10,3 +10,5 @@ pyinstaller \
 --add-data "./venv/Lib/site-packages/pyproj;pyproj" \
 --add-data "./venv/Lib/site-packages/rasterio;rasterio" \
 --noconfirm src/app.py
+
+pyinstaller --onefile --name=mesh_tool -w run.py

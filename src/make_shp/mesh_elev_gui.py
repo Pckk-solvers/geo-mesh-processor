@@ -3,9 +3,10 @@
 import os
 import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk, scrolledtext
 import threading
 import queue
+import tkinter.font as tkFont
 
 from src.make_shp.add_elevation import get_xy_columns, get_z_candidates
 from src.make_shp.pipeline import pipeline
@@ -14,92 +15,205 @@ class MeshElevApp(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
         master.title('メッシュ生成と標高付与ツール')
-        self.grid(sticky='nsew', padx=10, pady=10)
 
-        # ウィンドウのグリッド設定
-        master.columnconfigure(1, weight=1)
-        for i in range(8):
-            master.rowconfigure(i, weight=0)
-        master.rowconfigure(7, weight=1)
+        # ── メインフレーム(self) をルートに配置 ──
+        # row=0, column=0 のセルに sticky で全方向展開
+        self.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
 
+        # ── ルート(master)側のリサイズ設定 ──
+        # row=0, column=0 のセル（＝ self フレーム）がリサイズで伸びる
+        master.rowconfigure(0, weight=1)
+        master.columnconfigure(0, weight=1)
+
+        # ── self（フレーム） 内部のリサイズ設定 ──
+        # PanedWindow を置いている column=0 を伸縮対象に
+        self.columnconfigure(0, weight=1)
+        # 行０～? まで rowspan しているので、row=0 に余白を割り当て
+        self.rowconfigure(0, weight=1)
+
+        # ウィジェット生成（ここで PanedWindow → left_frame/help_frame を構築）
         self.create_widgets()
-
+        
     def create_widgets(self):
-        LABEL_WIDTH = 20
-        ENTRY_WIDTH = 40
+        # ── PanedWindow で左右分割 ──
+        paned = ttk.PanedWindow(self, orient='horizontal')
+        paned.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
+
+        # ── 左ペイン：入力項目用フレーム ──
+        left_frame = ttk.Frame(paned)
+        paned.add(left_frame, weight=0)   # weight=0 → 固定幅
+
+        # ── 右ペイン：ヘルプガイド用フレーム ──
+        help_frame = ttk.LabelFrame(paned, text='使い方ガイド', width=250)
+        paned.add(help_frame, weight=1)   # weight=1 → 伸縮対象
+
+        # --- 左側入力群 ---
+        LABEL_WIDTH  = 20
+        ENTRY_WIDTH  = 40
         BUTTON_WIDTH = 12
 
         # 計算領域 (.shp)
-        ttk.Label(self, text='計算領域 (.shp):', width=LABEL_WIDTH, anchor='e') \
+        ttk.Label(left_frame, text='計算領域 (.shp):',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=0, column=0, padx=5, pady=5)
         self.domain_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.domain_var, width=ENTRY_WIDTH, state='readonly') \
-            .grid(row=0, column=1, padx=5, pady=5, sticky='w')
-        ttk.Button(self, text='参照', command=self.browse_domain, width=BUTTON_WIDTH) \
+        self.domain_var_entry = ttk.Entry(
+            left_frame, textvariable=self.domain_var,
+            width=ENTRY_WIDTH, state='readonly'
+        )
+        self.domain_var_entry.grid(row=0, column=1, padx=5, pady=5, sticky='w')
+        ttk.Button(left_frame, text='参照',
+                   command=self.browse_domain,
+                   width=BUTTON_WIDTH) \
             .grid(row=0, column=2, padx=5, pady=5)
 
         # 流域界 (.shp)
-        ttk.Label(self, text='流域界 (.shp):', width=LABEL_WIDTH, anchor='e') \
+        ttk.Label(left_frame, text='流域界 (.shp):',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=1, column=0, padx=5, pady=5)
         self.basin_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.basin_var, width=ENTRY_WIDTH, state='readonly') \
-            .grid(row=1, column=1, padx=5, pady=5, sticky='w')
-        ttk.Button(self, text='参照', command=self.browse_basin, width=BUTTON_WIDTH) \
+        self.basin_var_entry = ttk.Entry(
+            left_frame, textvariable=self.basin_var,
+            width=ENTRY_WIDTH, state='readonly'
+        )
+        self.basin_var_entry.grid(row=1, column=1, padx=5, pady=5, sticky='w')
+        ttk.Button(left_frame, text='参照',
+                   command=self.browse_basin,
+                   width=BUTTON_WIDTH) \
             .grid(row=1, column=2, padx=5, pady=5)
 
-        # 点群データ (.csv)
-        ttk.Label(self, text='点群データ (.csv):', width=LABEL_WIDTH, anchor='e') \
+        # 点群データ (.csv/.shp)
+        ttk.Label(left_frame, text='点群データ (.csv/.shp):',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=2, column=0, padx=5, pady=5)
         self.points_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.points_var, width=ENTRY_WIDTH, state='readonly') \
-            .grid(row=2, column=1, padx=5, pady=5, sticky='w')
-        ttk.Button(self, text='参照', command=self.browse_points, width=BUTTON_WIDTH) \
+        self.points_var_entry = ttk.Entry(
+            left_frame, textvariable=self.points_var,
+            width=ENTRY_WIDTH, state='readonly'
+        )
+        self.points_var_entry.grid(row=2, column=1, padx=5, pady=5, sticky='w')
+        ttk.Button(left_frame, text='参照',
+                   command=self.browse_points,
+                   width=BUTTON_WIDTH) \
             .grid(row=2, column=2, padx=5, pady=5)
 
-        # Z 列選択 Combobox
-        ttk.Label(self, text='Z 列:', width=LABEL_WIDTH, anchor='e') \
+        # 標高値列 Combobox
+        ttk.Label(left_frame, text='標高値列:',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=3, column=0, padx=5, pady=5)
         self.z_var = tk.StringVar()
         self.z_combo = ttk.Combobox(
-            self, textvariable=self.z_var, values=[], width=ENTRY_WIDTH, state='readonly'
+            left_frame, textvariable=self.z_var,
+            values=[], width=ENTRY_WIDTH, state='readonly'
         )
         self.z_combo.grid(row=3, column=1, padx=5, pady=5, sticky='w')
 
         # セル数 X/Y
-        ttk.Label(self, text='X方向セル数:', width=LABEL_WIDTH, anchor='e') \
+        ttk.Label(left_frame, text='X方向セル数:',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=4, column=0, padx=5, pady=5)
         self.cells_x_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.cells_x_var, width=10) \
-            .grid(row=4, column=1, padx=5, pady=5, sticky='w')
+        self.cells_x_entry = ttk.Entry(
+            left_frame, textvariable=self.cells_x_var, width=10
+        )
+        self.cells_x_entry.grid(row=4, column=1, padx=5, pady=5, sticky='w')
 
-        ttk.Label(self, text='Y方向セル数:', width=LABEL_WIDTH, anchor='e') \
+        ttk.Label(left_frame, text='Y方向セル数:',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=5, column=0, padx=5, pady=5)
         self.cells_y_var = tk.StringVar()
-        ttk.Entry(self, textvariable=self.cells_y_var, width=10) \
-            .grid(row=5, column=1, padx=5, pady=5, sticky='w')
-            
+        self.cells_y_entry = ttk.Entry(
+            left_frame, textvariable=self.cells_y_var, width=10
+        )
+        self.cells_y_entry.grid(row=5, column=1, padx=5, pady=5, sticky='w')
+
         # NODATA値
-        ttk.Label(self, text='NODATA値:', width=LABEL_WIDTH, anchor='e') \
+        ttk.Label(left_frame, text='NODATA値:',
+                  width=LABEL_WIDTH, anchor='e') \
             .grid(row=6, column=0, padx=5, pady=5)
-        self.nodata_var = tk.StringVar(value="-9999")
-        ttk.Entry(self, textvariable=self.nodata_var, width=10) \
-            .grid(row=6, column=1, padx=5, pady=5, sticky='w')
+        self.nodata_var = tk.StringVar(value='-9999')
+        self.nodata_entry = ttk.Entry(
+            left_frame, textvariable=self.nodata_var, width=10
+        )
+        self.nodata_entry.grid(row=6, column=1, padx=5, pady=5, sticky='w')
 
         # 出力フォルダ
-        ttk.Label(self, text='出力フォルダ:', width=LABEL_WIDTH, anchor='e') \
-            .grid(row=6, column=0, padx=5, pady=5)
-        self.outdir_var = tk.StringVar(value="")
-        ttk.Entry(self, textvariable=self.outdir_var, width=ENTRY_WIDTH, state='readonly') \
-            .grid(row=6, column=1, padx=5, pady=5, sticky='w')
-        ttk.Button(self, text='参照', command=self.browse_outdir, width=BUTTON_WIDTH) \
-            .grid(row=6, column=2, padx=5, pady=5)
+        ttk.Label(left_frame, text='出力フォルダ:',
+                  width=LABEL_WIDTH, anchor='e') \
+            .grid(row=7, column=0, padx=5, pady=5)
+        self.outdir_var = tk.StringVar()
+        self.outdir_entry = ttk.Entry(
+            left_frame, textvariable=self.outdir_var,
+            width=ENTRY_WIDTH, state='readonly'
+        )
+        self.outdir_entry.grid(row=7, column=1, padx=5, pady=5, sticky='w')
+        ttk.Button(left_frame, text='参照',
+                   command=self.browse_outdir,
+                   width=BUTTON_WIDTH) \
+            .grid(row=7, column=2, padx=5, pady=5)
 
-        # 実行ボタンとステータス
+        # ステータス & 実行ボタン
         self.status_var = tk.StringVar()
-        ttk.Label(self, textvariable=self.status_var, anchor='w').grid(row=8, column=0, columnspan=2, sticky='we', padx=5, pady=10)
+        ttk.Label(left_frame, textvariable=self.status_var,
+                  anchor='w') \
+            .grid(row=8, column=0, columnspan=2,
+                  sticky='we', padx=5, pady=10)
+        ttk.Button(left_frame, text='実行',
+                   command=self.run_process,
+                   width=BUTTON_WIDTH) \
+            .grid(row=8, column=2, sticky='e',
+                  padx=5, pady=10)
 
-        self.run_button = ttk.Button(self, text='実行', command=self.run_process, width=BUTTON_WIDTH)
-        self.run_button.grid(row=8, column=2, sticky='e', padx=5, pady=10)
+        # ヘルプパネル生成の直前にフォントを定義
+        help_font = tkFont.Font(family='メイリオ', size=10)
+
+        # ── ヘルプテキスト ──
+        self.help_text = scrolledtext.ScrolledText(
+            help_frame,
+            wrap='word',
+            font=help_font,        # ← ここで指定
+            width=30,
+            height=20,
+            state='disabled'
+        )
+        self.help_text.pack(fill='both', expand=True, padx=5, pady=5)
+
+        help_body = """
+【計算領域 (.shp）】
+処理対象のポリゴンシェープファイルを選択してください。
+
+【流域界 (.shp）】
+平均標高を算出する範囲のシェープファイルを指定します。
+
+【点群データ (.csv）】
+・標高値を含むCSVファイル
+・座標の項目名はx,y(X,Y)を遵守してください。
+・複数の点群データを指定する場合、列名を統一するようにしてください。
+
+【標高値列】
+CSVデータ内の標高値の列名を選択してください。
+
+【X方向セル数】
+グリッドの横分割数。数値が大きいほど細かくなりますが、処理時間が長くなります。
+
+【Y方向セル数】
+グリッドの縦分割数。Xと同じ値を推奨します。
+
+【NODATA値】
+外部領域や欠損セルに設定する値。デフォルトは -9999。
+
+【出力フォルダ】
+結果ファイルを保存するフォルダを選択してください。
+
+【出力されるデータについて】
+domain_mesh_elev；計算領域の標高メッシュ（RRI用にASC変換する場合使用するのはこちらのデータ）
+basin_mesh_elev；流域界の標高メッシュ
+        """.strip()
+
+        self.help_text.config(state='normal')
+        self.help_text.insert('1.0', help_body)
+        self.help_text.config(state='disabled')
+
 
     def browse_domain(self):
         p = filedialog.askopenfilename(filetypes=[('Shapefile','*.shp')])
@@ -202,9 +316,10 @@ class MeshElevApp(ttk.Frame):
         except queue.Empty:
             self.master.after(100, self.check_queue)
 
-if __name__ == '__main__':
+def main():
     root = tk.Tk()
-    root.columnconfigure(1, weight=1)
-    root.rowconfigure(7, weight=1)
     app = MeshElevApp(root)
     root.mainloop()
+
+if __name__ == '__main__':
+    main()

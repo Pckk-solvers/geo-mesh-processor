@@ -3,13 +3,23 @@ from tkinter import ttk, messagebox
 import sys
 import os
 
+# プロジェクトのルートディレクトリをパスに追加
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 try:
-    from .shp_to_asc.gui import ShpToAscApp
-    from .make_shp.mesh_elev_gui import MeshElevApp
+    from src.shp_to_asc.gui import ShpToAscApp
+    from src.make_shp.mesh_elev_gui import MeshElevApp
 except ImportError as e:
-    # モジュールが見つからない場合に備えて、分かりやすいエラーメッセージを表示します
+    # モジュールが見つからない場合のエラーメッセージ
+    import traceback
     print(f"エラー: GUIモジュールのインポートに失敗しました。 {e}")
-    print("'src' ディレクトリが存在し、必要なスクリプトが含まれていることを確認してください。")
+    print("トレースバック:")
+    traceback.print_exc()
+    print("\nPythonパス:", sys.path)
+    print("\nカレントディレクトリ:", os.getcwd())
+    print("\n'src' ディレクトリが存在し、必要なスクリプトが含まれていることを確認してください。")
 
 
 class MainLauncher:

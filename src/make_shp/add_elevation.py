@@ -8,7 +8,8 @@ import argparse
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
-from shp_to_asc.core import DEFAULT_NODATA
+
+DEFAULT_NODATA = -9999
 
 
 def get_xy_columns(df):
