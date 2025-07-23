@@ -34,7 +34,7 @@ if __name__ == "__main__":
     ap.add_argument("--basin",     required=True, help="流域界ポリゴン     (.shp)")
     ap.add_argument("--cells_x",   type=int, required=True, help="X方向セル数")
     ap.add_argument("--cells_y",   type=int, required=True, help="Y方向セル数")
-    ap.add_argument("--points",    required=True, help="点群データ (CSV/SHP)")
+    ap.add_argument("--points",    required=True, nargs='+', help="点群データ (CSV/SHP)。複数ファイル指定可")
     ap.add_argument("--zcol",      default=None, help="Z 列名")
     ap.add_argument("--outdir",    default="./outputs", help="出力フォルダ")
     ap.add_argument("--nodata",    type=float, default=None, help="NODATA値 (デフォルト: -9999)")

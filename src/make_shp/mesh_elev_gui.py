@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
-import os
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, scrolledtext
@@ -12,9 +10,25 @@ from src.make_shp.add_elevation import get_xy_columns, get_z_candidates
 from src.make_shp.pipeline import pipeline
 
 class MeshElevApp(ttk.Frame):
-    def __init__(self, master):
+    def __init__(self, master, initial_values=None):
+        """
+        初期化
+        
+        Args:
+            master: 親ウィジェット
+            initial_values (dict): 初期値設定用の辞書。以下のキーを指定可能
+                - domain_shp: 計算領域シェープファイルパス
+                - basin_shp: 流域界シェープファイルパス
+                - points_csv: 点群CSVファイルパス（複数可、リストまたはセミコロン区切り）
+                - zcol: 標高値列名
+                - cells_x: X方向セル数
+                - cells_y: Y方向セル数
+                - nodata: NODATA値
+                - out_dir: 出力ディレクトリ
+        """
         super().__init__(master)
         master.title('メッシュ生成と標高付与ツール')
+        self.initial_values = initial_values or {}
 
         # ── メインフレーム(self) をルートに配置 ──
         # row=0, column=0 のセルに sticky で全方向展開
@@ -34,9 +48,44 @@ class MeshElevApp(ttk.Frame):
         # ウィジェット生成（ここで PanedWindow → left_frame/help_frame を構築）
         self.create_widgets()
         
+        # 初期値の設定
+        self._set_initial_values()
+        
         self.master.update_idletasks()
         self.master.minsize(self.master.winfo_width(), self.master.winfo_height())
         
+        # 1) Queue を作成
+        self.result_queue = queue.Queue()
+        # 2) 定期的に結果をチェックするコールバックを登録
+        self.after(100, self.check_queue)
+        
+    def _set_initial_values(self):
+        """初期値を設定する"""
+        if not self.initial_values:
+            return
+            
+        # 各ウィジェットに初期値を設定
+        if 'domain_shp' in self.initial_values:
+            self.domain_var.set(self.initial_values['domain_shp'])
+        if 'basin_shp' in self.initial_values:
+            self.basin_var.set(self.initial_values['basin_shp'])
+        if 'points_csv' in self.initial_values:
+            points = self.initial_values['points_csv']
+            if isinstance(points, list):
+                points = ";".join(points)
+            self.points_var.set(points)
+            self._update_z_candidates(points.split(';') if ';' in points else [points])
+        if 'zcol' in self.initial_values:
+            self.z_var.set(self.initial_values['zcol'])
+        if 'cells_x' in self.initial_values:
+            self.cells_x_var.set(str(self.initial_values['cells_x']))
+        if 'cells_y' in self.initial_values:
+            self.cells_y_var.set(str(self.initial_values['cells_y']))
+        if 'nodata' in self.initial_values:
+            self.nodata_var.set(str(self.initial_values['nodata']))
+        if 'out_dir' in self.initial_values:
+            self.outdir_var.set(self.initial_values['out_dir'])
+            
     def create_widgets(self):
         # ── PanedWindow で左右分割 ──
         paned = ttk.PanedWindow(self, orient='horizontal')
@@ -229,37 +278,48 @@ basin_mesh_elev；流域界の標高メッシュ
             self.basin_var.set(p)
 
     def browse_points(self):
-        p = filedialog.askopenfilename(filetypes=[('CSV','*.csv')])
-        if p:
-            self.points_var.set(p)
-            self._update_z_candidates(p)
+        paths = filedialog.askopenfilenames(
+            filetypes=[('CSV','*.csv')],
+            title="点群データを選択 (複数可)"
+        )
+        if paths:
+            # 可読性のため ';' 区切りで表示
+            self.points_var.set(";".join(paths))
+            self._update_z_candidates(paths)
+
 
     def browse_outdir(self):
         p = filedialog.askdirectory()
         if p:
             self.outdir_var.set(p)
 
-    def _update_z_candidates(self, path):
+
+    def _update_z_candidates(self, paths):
+        # 単一 or リストを判定し、先頭ファイルで列候補を取得
+        sample = paths[0] if isinstance(paths, (list, tuple)) else paths
         try:
-            df = pd.read_csv(path)
-        except Exception:
-            return
-        try:
+            df = pd.read_csv(sample)
             x_col, y_col = get_xy_columns(df)
             cands = get_z_candidates(df, x_col, y_col)
-        except ValueError as e:
+        except Exception as e:
             messagebox.showwarning('警告', str(e))
             return
 
         self.z_combo['values'] = cands
         if cands:
             self.z_var.set(cands[0])
+    # 元実装: path が文字列のみ :contentReference[oaicite:1]{index=1}
+
 
     def run_process(self):
+        # GUI上は ';' 区切り文字列 → リストに復元
+        raw = self.points_var.get()
+        paths = raw.split(";") if ";" in raw else [raw]
+
         args = {
             'domain_shp': self.domain_var.get(),
             'basin_shp': self.basin_var.get(),
-            'points_path': self.points_var.get(),
+            'points_path': paths,
             'zcol': self.z_var.get(),
             'cells_x_str': self.cells_x_var.get(),
             'cells_y_str': self.cells_y_var.get(),
@@ -267,57 +327,78 @@ basin_mesh_elev；流域界の標高メッシュ
             'nodata': self.nodata_var.get()
         }
 
-        if not all(args.values()):
-            messagebox.showerror('エラー', '全ての項目を入力してください')
-            return
-        try:
-            args['cells_x'] = int(args['cells_x_str'])
-            args['cells_y'] = int(args['cells_y_str'])
-            if args['cells_x'] <= 0 or args['cells_y'] <= 0:
-                raise ValueError
-        except ValueError:
-            messagebox.showerror('エラー', 'セル数は正の整数を入力してください')
+        # 入力チェック
+        if not all([
+            args['domain_shp'],
+            args['basin_shp'],
+            paths[0],
+            args['zcol'],
+            args['cells_x_str'],
+            args['cells_y_str'],
+            args['out_dir']
+        ]):
+            messagebox.showerror('エラー', 'すべての必須項目を入力してください')
             return
 
+        # UIを処理中状態に更新
         self.run_button.config(state='disabled')
         self.status_var.set("処理中...")
-        self.result_queue = queue.Queue()
+        self.update()  # UIを即時更新
 
+        # バックグラウンド実行
         threading.Thread(
             target=self._pipeline_worker,
-            args=(args,)
+            args=(args,),
+            daemon=True
         ).start()
-
-        self.master.after(100, self.check_queue)
 
     def _pipeline_worker(self, args):
         try:
             pipeline(
                 domain_shp=args['domain_shp'],
                 basin_shp=args['basin_shp'],
-                num_cells_x=args['cells_x'],
-                num_cells_y=args['cells_y'],
+                num_cells_x=int(args['cells_x_str']),
+                num_cells_y=int(args['cells_y_str']),
                 points_path=args['points_path'],
                 zcol=args['zcol'],
                 out_dir=args['out_dir'],
                 nodata=float(args['nodata']) if args['nodata'] else None
             )
-            self.result_queue.put(('success', 'メッシュ生成と標高付与が完了しました！'))
+            self.result_queue.put(('success', 'メッシュ生成と標高付与が完了しました'))
         except Exception as e:
-            self.result_queue.put(('error', e))
+            self.result_queue.put(('error', str(e)))
+    # 元実装: 単一文字列で渡していた :contentReference[oaicite:2]{index=2} & :contentReference[oaicite:3]{index=3}
 
     def check_queue(self):
+        """キューをチェックし、メッセージがあれば処理する"""
         try:
+            # キューからメッセージを取得（ブロックなし）
             message_type, data = self.result_queue.get_nowait()
+            
+            # ボタンの状態を元に戻す
             self.run_button.config(state='normal')
-            self.status_var.set("完了")
-
+            
+            # メッセージタイプに応じた処理
             if message_type == 'success':
+                self.status_var.set("完了")
                 messagebox.showinfo('完了', data)
             elif message_type == 'error':
+                self.status_var.set("エラーが発生しました")
                 messagebox.showerror('エラー', f'処理中にエラーが発生しました: {data}')
+                
+            # 処理完了をマーク
+            self.result_queue.task_done()
+            
         except queue.Empty:
-            self.master.after(100, self.check_queue)
+            # キューが空の場合は何もしない
+            pass
+        except Exception as e:
+            # 予期せぬエラーをログに記録
+            print(f"キュー処理中にエラーが発生しました: {e}")
+        finally:
+            # 次回のチェックをスケジュール
+            self.after(100, self.check_queue)
+            
 
 def main():
     root = tk.Tk()

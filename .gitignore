@@ -1,7 +1,6 @@
-input
-output
+input*
+output*
 *.pyc
 *__pycache__
-output*
 dist
 build

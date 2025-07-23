@@ -21,7 +21,15 @@ class ShpToAscApp(ttk.Frame):
         for i in range(7):
             master.rowconfigure(i, weight=0)
         master.rowconfigure(5, weight=1)
+        
+        # メッセージキューを初期化
+        self.message_queue = queue.Queue()
+        
+        # ウィジェットを作成
         self.create_widgets()
+        
+        # キューを定期的にチェックするコールバックを登録
+        self.after(100, self.check_queue)
 
     def create_widgets(self):
         LABEL_WIDTH = 25
@@ -112,57 +120,101 @@ class ShpToAscApp(ttk.Frame):
         if path:
             self.output_path_var.set(path)
 
+    def check_queue(self):
+        """メッセージキューをチェックしてUIを更新"""
+        try:
+            while True:
+                message = self.message_queue.get_nowait()
+                if message[0] == 'status':
+                    self.status_var.set(message[1])
+                elif message[0] == 'enable_button':
+                    self.run_button.config(state='normal')
+                elif message[0] == 'error':
+                    messagebox.showerror("エラー", message[1])
+                    self.run_button.config(state='normal')
+                    self.status_var.set("エラーが発生しました")
+                
+                self.message_queue.task_done()
+        except queue.Empty:
+            pass
+        
+        # 次のチェックをスケジュール
+        self.after(100, self.check_queue)
+        
+    def update_status(self, message):
+        """ステータスを更新"""
+        self.message_queue.put(('status', message))
+        
     def run_conversion(self):
         shp = self.input_path_var.get()
         if not shp:
             messagebox.showwarning("警告", "入力ファイルを選択してください")
             return
+            
         field = self.field_cb.get()
+        if not field:
+            messagebox.showwarning("警告", "属性フィールドを選択してください")
+            return
+            
         try:
             shp_path = self.input_path_var.get()
-            field = self.field_cb.get()
             output_path = self.output_path_var.get()
+            
+            if not output_path:
+                messagebox.showwarning("警告", "出力ファイルを指定してください")
+                return
             
             # NoData値が空の場合はデフォルト値を使用
             nodata_str = self.nodata_var.get().strip()
             nodata = float(nodata_str) if nodata_str else DEFAULT_NODATA
-
-            if not all([shp_path, field, output_path]):
-                messagebox.showwarning("警告", "必須フィールドを入力してください。")
-                return
+            
+            # ボタンを無効化して処理中状態に
+            self.run_button.config(state='disabled')
+            self.status_var.set("処理中...")
+            self.update()  # UIを即時更新
 
             # バックグラウンドで実行
-            self.queue = queue.Queue()
-            self.thread = threading.Thread(
+            threading.Thread(
                 target=self._run_conversion,
                 args=(shp_path, field, output_path, nodata),
                 daemon=True
-            )
-            self.thread.start()
-            self.master.after(100, self._check_queue)
+            ).start()
 
-        except ValueError:
+        except ValueError as e:
+            self.status_var.set("エラー: NoData値が無効です")
             messagebox.showerror("エラー", "NoData値は数値で指定してください。")
+            self.run_button.config(state='normal')
         except Exception as e:
+            self.status_var.set("エラーが発生しました")
             messagebox.showerror("エラー", f"予期せぬエラーが発生しました: {e}")
+            self.run_button.config(state='normal')
 
     def _run_conversion(self, shp_path, field, output_path, nodata):
         """変換を実行する内部メソッド"""
         try:
+            self.update_status("処理中...")
             # グリッド情報を取得
             grid_info = analyze_grid_structure(shp_path)
+            
+            self.update_status("処理中...")
             # 変換を実行
-            shp_to_ascii(shp_path, field, output_path, nodata)
-            # グリッド情報をキューに渡す
-            self.queue.put(("success", (
-                grid_info['ncols'],
-                grid_info['nrows'],
-                grid_info['cell_size_x'],
-                grid_info['cell_size_y'],
-                output_path
-            )))
+            ncols, nrows, dx, dy = shp_to_ascii(shp_path, field, output_path, nodata)
+            
+            # 完了メッセージをキューに追加
+            self.message_queue.put(('status', '完了'))
+            self.message_queue.put(('enable_button', True))
+            
+            # 結果を表示
+            messagebox.showinfo(
+                "完了",
+                f"変換が完了しました。\n\n"
+                f"出力先: {output_path}\n"
+                f"セル数: {ncols} × {nrows}\n"
+                f"セルサイズ: dx={dx:.12f}, dy={dy:.12f}"
+            )
+            
         except Exception as e:
-            self.queue.put(("error", str(e)))
+            self.message_queue.put(('error', f"変換中にエラーが発生しました:\n{str(e)}"))
 
     def _check_queue(self):
         """キューをチェックしてGUIを更新する"""

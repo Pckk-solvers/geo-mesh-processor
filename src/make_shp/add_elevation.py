@@ -60,41 +60,50 @@ def get_z_candidates(df, x_col, y_col):
 
 
 
-def load_points(path, target_crs, zcol_arg=None):
-    # 1. SHPファイルの場合
-    if path.lower().endswith(".shp"):
-        return gpd.read_file(path).to_crs(target_crs)
+def load_points(paths, target_crs, zcol_arg=None):
+    """
+    複数の点群ファイル (CSV または SHP) を読み込み、
+    target_crs に変換して結合した GeoDataFrame を返します。
+    paths: str または str のリスト
+    """
+    def _load_one(path):
+        # 1) SHPファイルの場合
+        if path.lower().endswith(".shp"):
+            return gpd.read_file(path).to_crs(target_crs)  # 単一SHP読み込み・CRS変換 :contentReference[oaicite:0]{index=0}
 
-    df = pd.read_csv(path)
-    x_col, y_col = get_xy_columns(df)
-    # Z 列候補を取得
-    z_cands = get_z_candidates(df, x_col, y_col)
+        # 2) CSVファイルの場合
+        df = pd.read_csv(path)  # CSV読み込み :contentReference[oaicite:1]{index=1}
+        x_col, y_col = get_xy_columns(df)  # X,Y列検出 :contentReference[oaicite:2]{index=2}
+        z_cands = get_z_candidates(df, x_col, y_col)  # Z列候補取得 :contentReference[oaicite:3]{index=3}
 
-    # zcol_arg があればそれを使い、なければ候補を1つに絞る／エラー
-    if zcol_arg:
-        if zcol_arg in z_cands:
-            z_col = zcol_arg
+        # 3) Z列の決定
+        if zcol_arg:
+            if zcol_arg in z_cands:
+                z_col = zcol_arg
+            else:
+                raise ValueError(f"指定された Z 列 '{zcol_arg}' が候補 {z_cands} にありません")
         else:
-            raise ValueError(f"指定された Z 列 '{zcol_arg}' が候補 {z_cands} にありません")
+            if len(z_cands) == 1:
+                z_col = z_cands[0]
+            else:
+                raise ValueError(f"Z 列候補が複数あります: {z_cands}。--zcol で指定してください")  # 元の実装参照 :contentReference[oaicite:4]{index=4}
+
+        # 4) GeoDataFrame 作成
+        geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]  # ジオメトリ作成 :contentReference[oaicite:5]{index=5}
+        gdf = gpd.GeoDataFrame(
+            df[[z_col]].rename(columns={z_col: "elevation"}),
+            geometry=geom,
+            crs=target_crs
+        )
+        return gdf
+
+    # 5) 複数ファイル読み込み＆結合
+    if isinstance(paths, (list, tuple)):
+        gdfs = [_load_one(p) for p in paths]
+        combined = pd.concat(gdfs, ignore_index=True)
+        return gpd.GeoDataFrame(combined, crs=target_crs)
     else:
-        if len(z_cands) == 1:
-            z_col = z_cands[0]
-        else:
-            raise ValueError(f"Z 列候補が複数あります: {z_cands}。--zcol で指定してください")
-
-    # GeoDataFrame の作成
-    geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]
-    gdf = gpd.GeoDataFrame(
-        df[[z_col]].rename(columns={z_col: "elevation"}), 
-        geometry=geom,
-        crs=target_crs
-    )
-    
-    print(f"点群の平均標高: {gdf['elevation'].mean():.6f}")
-    print(f"点群の座標系: {gdf.crs}")
-    print(f"点群の範囲: {gdf.total_bounds}")
-    
-    return gdf
+        return _load_one(paths)
 
 def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
     # Nodata値が指定されていない場合はデフォルト値を使用
@@ -171,7 +180,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="標高付与")
     ap.add_argument("--basin_mesh",  required=True, help="流域メッシュ (.shp)")
     ap.add_argument("--domain_mesh", required=True, help="計算領域メッシュ (.shp)")
-    ap.add_argument("--points",      required=True, help="点群 CSV/SHP (.csv/.txt/.shp)")
+    ap.add_argument("--points",      required=True, nargs='+', help="点群 CSV (.csv)。複数ファイル指定可")
     ap.add_argument("--zcol",        default=None, help="Z 列名")
     ap.add_argument("--outdir",      default="./outputs", help="出力フォルダ")
     args = ap.parse_args()

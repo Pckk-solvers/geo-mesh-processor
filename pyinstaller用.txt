@@ -1,6 +1,6 @@
 バージョン番号を加えるかどうか
 
-pyinstaller 
+pyinstaller `
 --name shp_asc_converter `
 --onedir `
 --console `
@@ -11,4 +11,6 @@ pyinstaller
 --add-data "./venv/Lib/site-packages/rasterio;rasterio" `
 --noconfirm src/app.py
 
+
+なんかうまくいかない！！
 pyinstaller --onefile --name=mesh_tool -w --hidden-import=rasterio.sample run.py
