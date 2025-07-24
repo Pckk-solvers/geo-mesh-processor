@@ -295,19 +295,56 @@ basin_mesh_elev；流域界の標高メッシュ
 
 
     def _update_z_candidates(self, paths):
-        # 単一 or リストを判定し、先頭ファイルで列候補を取得
-        sample = paths[0] if isinstance(paths, (list, tuple)) else paths
+        # パスをリストに統一
+        paths = [paths] if isinstance(paths, str) else paths
+        
+        all_candidates = []
+        
         try:
-            df = pd.read_csv(sample)
-            x_col, y_col = get_xy_columns(df)
-            cands = get_z_candidates(df, x_col, y_col)
+            # 各ファイルから列候補を取得
+            for i, path in enumerate(paths):
+                df = pd.read_csv(path)
+                x_col, y_col = get_xy_columns(df)
+                candidates = get_z_candidates(df, x_col, y_col)
+                
+                if i == 0:
+                    # 最初のファイルの候補をベースに
+                    common_candidates = set(candidates)
+                else:
+                    # 共通の候補のみを残す
+                    common_candidates.intersection_update(set(candidates))
+                
+                all_candidates.extend(candidates)
+            
+            # 共通の候補がない場合は警告を表示
+            if not common_candidates:
+                self.z_combo['values'] = []
+                self.z_var.set('')
+                messagebox.showwarning(
+                    '警告', 
+                    'ファイル間で共通の標高値列が見つかりません。\n' +
+                    '以下の理由が考えられます：\n' +
+                    '1. 選択したファイルに共通の列名が存在しない\n' +
+                    '2. ファイルの形式が異なる\n\n' +
+                    '全てのファイルで同じ列名を使用していることを確認してください。'
+                )
+                return
+                
+            # 共通の候補を使用
+            final_candidates = list(common_candidates)
+            
+            # ドロップダウンに設定
+            self.z_combo['values'] = final_candidates
+            
+            # 現在の選択を維持（無効な場合は先頭を選択）
+            current = self.z_var.get()
+            if current not in final_candidates:
+                self.z_var.set(final_candidates[0])
+                
         except Exception as e:
-            messagebox.showwarning('警告', str(e))
-            return
-
-        self.z_combo['values'] = cands
-        if cands:
-            self.z_var.set(cands[0])
+            messagebox.showwarning('警告', f'列候補の取得中にエラーが発生しました:\n{str(e)}')
+            self.z_combo['values'] = []
+            self.z_var.set('')
     # 元実装: path が文字列のみ :contentReference[oaicite:1]{index=1}
 
 

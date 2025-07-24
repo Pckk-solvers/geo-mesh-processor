@@ -25,7 +25,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='メッシュ生成と標高付与ツール', add_help=False)
     parser.add_argument('--domain-shp', help='計算領域シェープファイルのパス', default="./input/SHP→ASC変換作業_サンプルデータ/計算領域_POL.shp")
     parser.add_argument('--basin-shp', help='流域界シェープファイルのパス', default="./input/SHP→ASC変換作業_サンプルデータ/流域界_POL.shp")
-    parser.add_argument('--points-csv', nargs='+', help='点群CSVファイルのパス（複数指定可）', default="./input/SHP→ASC変換作業_サンプルデータ/標高点群.csv")
+    parser.add_argument('--points-csv', nargs='+', help='点群CSVファイルのパス（複数指定可）', default="input2/標高点群_part1.csv;input2/標高点群_part2.csv")
     parser.add_argument('--zcol', help='標高値の列名', default="elevation")
     parser.add_argument('--cells-x', type=int, help='X方向のセル数', default=100)
     parser.add_argument('--cells-y', type=int, help='Y方向のセル数', default=100)

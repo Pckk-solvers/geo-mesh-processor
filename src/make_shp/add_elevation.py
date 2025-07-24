@@ -81,12 +81,12 @@ def load_points(paths, target_crs, zcol_arg=None):
             if zcol_arg in z_cands:
                 z_col = zcol_arg
             else:
-                raise ValueError(f"指定された Z 列 '{zcol_arg}' が候補 {z_cands} にありません")
+                raise ValueError(f"現在処理中ファイルの{path}には指定された 標高値列 '{zcol_arg}' が見つかりません。他の候補: {z_cands}")
         else:
             if len(z_cands) == 1:
                 z_col = z_cands[0]
             else:
-                raise ValueError(f"Z 列候補が複数あります: {z_cands}。--zcol で指定してください")  # 元の実装参照 :contentReference[oaicite:4]{index=4}
+                raise ValueError(f"現在処理中ファイルの{path}にはZ 列候補が複数あります: {z_cands}。--zcol で指定してください")
 
         # 4) GeoDataFrame 作成
         geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]  # ジオメトリ作成 :contentReference[oaicite:5]{index=5}
