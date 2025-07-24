@@ -99,8 +99,8 @@ class MeshElevApp(ttk.Frame):
             self.z_var.set(self.initial_values['zcol'])
         if 'cells_x' in self.initial_values:
             self.cells_x_var.set(str(self.initial_values['cells_x']))
-        if 'cells_y' in self.initial_values:
-            self.cells_y_var.set(str(self.initial_values['cells_y']))
+        # if 'cells_y' in self.initial_values:
+        #     self.cells_y_var.set(str(self.initial_values['cells_y']))
         if 'nodata' in self.initial_values:
             self.nodata_var.set(str(self.initial_values['nodata']))
         if 'out_dir' in self.initial_values:
@@ -181,7 +181,7 @@ class MeshElevApp(ttk.Frame):
         self.z_combo.grid(row=3, column=1, padx=5, pady=5, sticky='w')
 
         # セル数 X/Y
-        ttk.Label(left_frame, text='X方向セル数:',
+        ttk.Label(left_frame, text='メッシュ分割数:',
                   width=LABEL_WIDTH, anchor='e') \
             .grid(row=4, column=0, padx=5, pady=5)
         self.cells_x_var = tk.StringVar()
@@ -190,14 +190,14 @@ class MeshElevApp(ttk.Frame):
         )
         self.cells_x_entry.grid(row=4, column=1, padx=5, pady=5, sticky='w')
 
-        ttk.Label(left_frame, text='Y方向セル数:',
-                  width=LABEL_WIDTH, anchor='e') \
-            .grid(row=5, column=0, padx=5, pady=5)
-        self.cells_y_var = tk.StringVar()
-        self.cells_y_entry = ttk.Entry(
-            left_frame, textvariable=self.cells_y_var, width=10
-        )
-        self.cells_y_entry.grid(row=5, column=1, padx=5, pady=5, sticky='w')
+        # ttk.Label(left_frame, text='Y方向セル数:',
+        #           width=LABEL_WIDTH, anchor='e') \
+        #     .grid(row=5, column=0, padx=5, pady=5)
+        # self.cells_y_var = tk.StringVar()
+        # self.cells_y_entry = ttk.Entry(
+        #     left_frame, textvariable=self.cells_y_var, width=10
+        # )
+        # self.cells_y_entry.grid(row=5, column=1, padx=5, pady=5, sticky='w')
 
         # NODATA値
         ttk.Label(left_frame, text='NODATA値:',
@@ -265,11 +265,8 @@ class MeshElevApp(ttk.Frame):
 【標高値列】
 CSVデータ内の標高値の列名を選択してください。
 
-【X方向セル数】
-グリッドの横分割数。数値が大きいほど細かくなりますが、処理時間が長くなります。
-
-【Y方向セル数】
-グリッドの縦分割数。Xと同じ値を推奨します。
+【メッシュ分割数】
+標準メッシュの分割数。数値が大きいほど細かくなりますが、処理時間が長くなります。
 
 【NODATA値】
 外部領域や欠損セルに設定する値。デフォルトは -9999。
@@ -385,7 +382,8 @@ basin_mesh_elev；流域界の標高メッシュ
                     domain_shp=self.domain_var.get(),
                     basin_shp=self.basin_var.get(),
                     num_cells_x=int(self.cells_x_var.get()),
-                    num_cells_y=int(self.cells_y_var.get()),
+                    # Y方向セル数をX方向セル数と同一にする
+                    num_cells_y=int(self.cells_x_var.get()),
                     points_path=paths,
                     out_dir=self.outdir_var.get(),
                     zcol=self.z_var.get(),
