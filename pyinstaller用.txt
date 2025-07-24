@@ -6,11 +6,37 @@ pyinstaller `
 --console `
 --hidden-import=rasterio._shim `
 --hidden-import=rasterio.sample `
+--hidden-import=rasterio._io `
+--hidden-import=rasterio.vrt `
+--hidden-import=fiona._env `
+--hidden-import=fiona._loading `
+--hidden-import=pyproj._datadir `
+--hidden-import=shapely.speedups `
+--hidden-import=geopandas._compat `
+--hidden-import=geopandas._version `
+--hidden-import=rtree.index `
+--add-data "data/standard_mesh.shx;data" `
+--add-data "data/standard_mesh.shp;data" `
+--add-data "data/standard_mesh.prj;data" `
+--add-data "data/standard_mesh.dbf;data" `
+--add-data "data/standard_mesh.cpg;data" `
+--noconfirm src/app.py
+
+pyinstaller `
+--name shp_asc_converter `
+--onedir `
+--console `
+--hidden-import=rasterio._shim `
+--hidden-import=rasterio.sample `
 --add-data "./venv/Lib/site-packages/geopandas;geopandas" `
 --add-data "./venv/Lib/site-packages/pyproj;pyproj" `
 --add-data "./venv/Lib/site-packages/rasterio;rasterio" `
+--add-data "data/standard_mesh.shx;data" `
+--add-data "data/standard_mesh.shp;data" `
+--add-data "data/standard_mesh.prj;data" `
+--add-data "data/standard_mesh.dbf;data" `
+--add-data "data/standard_mesh.cpg;data" `
 --noconfirm src/app.py
-
 
 なんかうまくいかない！！
 pyinstaller --onefile --name=mesh_tool -w --hidden-import=rasterio.sample run.py

@@ -5,9 +5,29 @@ from tkinter import filedialog, messagebox, ttk, scrolledtext
 import threading
 import queue
 import tkinter.font as tkFont
+import os
+import sys
 
 from src.make_shp.add_elevation import get_xy_columns, get_z_candidates
 from src.make_shp.pipeline import pipeline
+
+# ── 実行モード判別 ──
+# - PyInstaller の exe 化時には _MEIPASS に資源が展開される
+# - スクリプト実行時にはこのファイルのある場所から project root (= 上２階層) を参照
+BASE_DIR = getattr(
+    sys, '_MEIPASS',
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            '..',  # src/make_shp のひとつ上 → src
+            '..'   # src のひとつ上 → プロジェクトルート
+        )
+    )
+)
+
+# data フォルダをプロジェクトルート直下に置く想定
+STANDARD_MESH = os.path.join(BASE_DIR, 'data', 'standard_mesh.shp')
+MESH_ID       = None
 
 class MeshElevApp(ttk.Frame):
     def __init__(self, master, initial_values=None):
@@ -349,62 +369,34 @@ basin_mesh_elev；流域界の標高メッシュ
 
 
     def run_process(self):
-        # GUI上は ';' 区切り文字列 → リストに復元
         raw = self.points_var.get()
         paths = raw.split(";") if ";" in raw else [raw]
-
-        args = {
-            'domain_shp': self.domain_var.get(),
-            'basin_shp': self.basin_var.get(),
-            'points_path': paths,
-            'zcol': self.z_var.get(),
-            'cells_x_str': self.cells_x_var.get(),
-            'cells_y_str': self.cells_y_var.get(),
-            'out_dir': self.outdir_var.get(),
-            'nodata': self.nodata_var.get()
-        }
-
         # 入力チェック
-        if not all([
-            args['domain_shp'],
-            args['basin_shp'],
-            paths[0],
-            args['zcol'],
-            args['cells_x_str'],
-            args['cells_y_str'],
-            args['out_dir']
-        ]):
-            messagebox.showerror('エラー', 'すべての必須項目を入力してください')
+        if not all([self.domain_var.get(), self.basin_var.get(), paths[0], self.outdir_var.get()]):
+            messagebox.showerror('エラー', '必須項目が入力されていません。')
             return
 
-        # UIを処理中状態に更新
         self.run_button.config(state='disabled')
-        self.status_var.set("処理中...")
-        self.update()  # UIを即時更新
+        self.status_var.set('実行中...')
 
-        # バックグラウンド実行
-        threading.Thread(
-            target=self._pipeline_worker,
-            args=(args,),
-            daemon=True
-        ).start()
-
-    def _pipeline_worker(self, args):
-        try:
-            pipeline(
-                domain_shp=args['domain_shp'],
-                basin_shp=args['basin_shp'],
-                num_cells_x=int(args['cells_x_str']),
-                num_cells_y=int(args['cells_y_str']),
-                points_path=args['points_path'],
-                zcol=args['zcol'],
-                out_dir=args['out_dir'],
-                nodata=float(args['nodata']) if args['nodata'] else None
-            )
-            self.result_queue.put(('success', 'メッシュ生成と標高付与が完了しました'))
-        except Exception as e:
-            self.result_queue.put(('error', str(e)))
-    # 元実装: 単一文字列で渡していた :contentReference[oaicite:2]{index=2} & :contentReference[oaicite:3]{index=3}
+        def worker():
+            try:
+                pipeline(
+                    domain_shp=self.domain_var.get(),
+                    basin_shp=self.basin_var.get(),
+                    num_cells_x=int(self.cells_x_var.get()),
+                    num_cells_y=int(self.cells_y_var.get()),
+                    points_path=paths,
+                    out_dir=self.outdir_var.get(),
+                    zcol=self.z_var.get(),
+                    nodata=float(self.nodata_var.get()),
+                    standard_mesh=STANDARD_MESH,
+                    mesh_id=MESH_ID
+                )
+                self.result_queue.put(('success', 'メッシュ抽出・生成と標高付与が完了しました'))
+            except Exception as e:
+                self.result_queue.put(('error', str(e)))
+        threading.Thread(target=worker, daemon=True).start()
 
     def check_queue(self):
         """キューをチェックし、メッセージがあれば処理する"""

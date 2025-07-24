@@ -2,29 +2,16 @@
 
 src
  ┣ make_shp
- ┃ ┣ __pycache__
- ┃ ┃ ┣ add_elevation.cpython-313.pyc
- ┃ ┃ ┣ generate_mesh.cpython-313.pyc
- ┃ ┃ ┣ mesh_elev_gui.cpython-313.pyc
- ┃ ┃ ┣ pipeline.cpython-313.pyc
- ┃ ┃ ┗ __init__.cpython-313.pyc
+ ┃ ┣ extract_standard_mesh.py
  ┃ ┣ add_elevation.py
  ┃ ┣ generate_mesh.py
  ┃ ┣ mesh_elev_gui.py
  ┃ ┣ pipeline.py
  ┃ ┗ __init__.py
  ┣ shp_to_asc
- ┃ ┣ __pycache__
- ┃ ┃ ┣ core.cpython-313.pyc
- ┃ ┃ ┣ gui.cpython-313.pyc
- ┃ ┃ ┣ utils.cpython-313.pyc
- ┃ ┃ ┗ __init__.cpython-313.pyc
  ┃ ┣ core.py
  ┃ ┣ gui.py
  ┃ ┣ utils.py
  ┃ ┗ __init__.py
- ┣ __pycache__
- ┃ ┣ app.cpython-313.pyc
- ┃ ┗ __init__.cpython-313.pyc
  ┣ app.py
  ┗ __init__.py

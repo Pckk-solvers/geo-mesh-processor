@@ -1,5 +1,0 @@
-{
-    "input_shp": "C:\\Users\\yuuta.ochiai\\Documents\\GitHub\\shp_to_asc_converter\\input\\SHP→ASC変換作業_サンプルデータ\\標準地域メッシュ.shp",
-    "output_shp": "C:\\Users\\yuuta.ochiai\\Documents\\GitHub\\shp_to_asc_converter\\output\\SHP→ASC変換作業_サンプルデータ\\標準地域メッシュ_trimmed.shp",
-    "keep_columns": ["Name"]
-}
