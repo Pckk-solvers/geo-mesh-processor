@@ -4,9 +4,9 @@ import argparse
 import geopandas as gpd
 from pyproj import Geod
 
-# ログ設定
+# ログ設定 - 本番環境ではWARNINGレベルに設定
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.WARNING,  # デフォルトはWARNINGレベルに設定
     format='%(asctime)s [%(levelname)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
@@ -24,66 +24,74 @@ def assign_dominant_values(
 ) -> None:
     """
     基準メッシュと属性メッシュを読み込み、面積割合が最大の属性値を各セルに付与します。
-    デバッグログを豊富に出力します。
+    処理の進行状況を表示します。
     """
-    # 入力パスとパラメータのログ
-    logger.debug(f"入力 base_path = {base_path}")
-    logger.debug(f"入力 land_path = {land_path}")
-    logger.debug(f"source_field = {source_field}, output_field = {output_field}, threshold = {threshold}, nodata = {nodata}")
+    print("== メッシュ属性代表値付与処理を開始します ==")
+    print(f"基準メッシュ: {base_path}")
+    print(f"属性メッシュ: {land_path}")
+    print(f"閾値: {threshold}, NoData値: {nodata}")
 
-    # Shapefile 読込
+    # ファイル読み込み
+    print("\n[1/5] ファイルを読み込んでいます...")
     base_gdf = gpd.read_file(base_path)
     land_gdf = gpd.read_file(land_path)
-    logger.debug(f"base_gdf: {len(base_gdf)} フィーチャ, CRS={base_gdf.crs}")
-    logger.debug(f"land_gdf: {len(land_gdf)} フィーチャ, CRS={land_gdf.crs}")
+    print(f"  基準メッシュ: {len(base_gdf)} メッシュ")
+    print(f"  属性メッシュ: {len(land_gdf)} ポリゴン")
+    
+    # ログ用の進捗表示
+    logger.info(f"処理を開始: 基準メッシュ={base_path}")
+    logger.info(f"属性メッシュ={land_path}, 閾値={threshold}")
+    logger.info(f"読み込み完了: 基準メッシュ={len(base_gdf)}件, 属性メッシュ={len(land_gdf)}件")
 
     # CRSチェック
     if base_gdf.crs != land_gdf.crs:
         logger.error(f"CRS不一致: base={base_gdf.crs}, land={land_gdf.crs}")
         raise ValueError(f"CRS不一致: base={base_gdf.crs}, land={land_gdf.crs}")
 
-    # mesh_id付与（存在しない場合）
+    # mesh_id がなければ作成
     if 'mesh_id' not in base_gdf.columns:
         base_gdf = base_gdf.copy()
         base_gdf['mesh_id'] = base_gdf.index
-        logger.debug("mesh_id 列をインデックスから作成しました。")
 
-    # 面積の計算
+    # 面積の計算 (Geod によるジオデシック面積)
     geod = Geod(ellps="WGS84")
-    base_gdf['base_area'] = base_gdf.geometry.apply(
-        lambda geom: abs(geod.geometry_area_perimeter(geom)[0])
-    )
-    logger.debug(f"base_area 計算完了: min={base_gdf['base_area'].min()}, max={base_gdf['base_area'].max()}")
+    base_gdf['base_area'] = base_gdf.geometry.apply(lambda geom: abs(geod.geometry_area_perimeter(geom)[0]))
 
     # 空間オーバーレイ
+    print("\n[2/5] 空間オーバーレイを実行中...")
     land_subset = land_gdf[[source_field, 'geometry']]
     inter = gpd.overlay(base_gdf, land_subset, how='intersection', keep_geom_type="Polygon")
-    logger.debug(f"overlay 結果: inter に {len(inter)} フィーチャ。")
+    print(f"  オーバーレイ結果: {len(inter)} の交差領域を検出")
 
     if inter.empty:
         # 交差なし → nodata, coverage_ratio は 0
+        print("\n[!] 警告: メッシュ間に交差が見つかりませんでした。すべての出力値がNODATAになります。")
+        logger.warning("メッシュ間に交差がありません。すべての出力値がNODATAになります。")
         base_gdf['cov_area'] = 0
         base_gdf['cov_ratio'] = 0
         base_gdf[output_field] = nodata
     else:
-        # 交差領域面積計算
-        inter['int_area'] = inter.geometry.apply(
-            lambda geom: abs(geod.geometry_area_perimeter(geom)[0])
-        )
-        logger.debug(f"inter.int_area 計算完了: min={inter['int_area'].min()}, max={inter['int_area'].max()}")
-
-        # 属性を問わず総カバー面積
+        print("\n[3/5] 面積計算を実行中...")
+        
+        # 1) 面積計算
+        inter['int_area'] = inter.geometry.apply(lambda g: abs(geod.geometry_area_perimeter(g)[0]))
+        
+        # 2) セル全体の被覆面積 & 被覆率を算出
+        print("  各メッシュの被覆率を計算中...")
         coverage = (
             inter.groupby('mesh_id')['int_area']
                  .sum()
                  .reset_index(name='cov_area')
         )
         coverage = coverage.merge(
-            base_gdf[['mesh_id', 'base_area']], on='mesh_id', how='left'
+            base_gdf[['mesh_id', 'base_area']],
+            on='mesh_id', how='left'
         )
-        coverage['cov_ratio'] = coverage['cov_area'] / coverage['base_area']
-        coverage['cov_ratio'] = coverage['cov_ratio'].round(4)
-        logger.debug(f"coverage_ratio 計算完了: min={coverage['cov_ratio'].min()}, max={coverage['cov_ratio'].max()}")
+        coverage['cov_ratio'] = (coverage['cov_area'] / coverage['base_area']).round(4)
+        
+        # 進捗表示
+        cov_ratio_avg = coverage['cov_ratio'].mean() * 100
+        print(f"  平均被覆率: {cov_ratio_avg:.1f}% (閾値: {threshold*100}%)")
 
         # Baseに coverage 情報をマージ
         base_gdf = base_gdf.merge(
@@ -93,7 +101,8 @@ def assign_dominant_values(
         base_gdf[['cov_area', 'cov_ratio']] = base_gdf[['cov_area', 'cov_ratio']].fillna(0)
         base_gdf['cov_ratio'] = base_gdf['cov_ratio'].round(4)
 
-        # landuseごとの面積合計
+        # 4) landuse ごとの面積合計と割合を計算
+        print("\n[4/5] 属性値ごとの面積割合を計算中...")
         grp = (
             inter.groupby(['mesh_id', source_field])['int_area']
                  .sum()
@@ -101,25 +110,25 @@ def assign_dominant_values(
         )
         grp = grp.merge(base_gdf[['mesh_id', 'base_area']], on='mesh_id', how='left')
         grp['area_ratio'] = grp['tot_area'] / grp['base_area']
-        logger.debug(f"landuseごとの ratio サンプル: {grp.head()}")
+        
+        # ユニークな属性値の数を表示
+        unique_values = len(grp[source_field].unique())
+        print(f"  検出された属性値の種類: {unique_values}種類")
 
         # 最大ratio選択
         grp_sorted = grp.sort_values(['mesh_id', 'area_ratio'], ascending=[True, False])
         dominant = grp_sorted.groupby('mesh_id', as_index=False).first()
 
-        # coverage_ratio を dominant にマージ
+        # 6) coverage_ratio を dominant にマージして閾値判定
         dominant = dominant.merge(
             coverage[['mesh_id', 'cov_area', 'cov_ratio']],
             on='mesh_id', how='left'
         )
         dominant['cov_ratio'] = dominant['cov_ratio'].fillna(0)
-
-        # 閾値適用
         dominant['dominant_v'] = dominant.apply(
             lambda row: row[source_field] if row['cov_ratio'] >= threshold else nodata,
             axis=1
         )
-        logger.debug(f"dominant_v 値の内訳: {dominant['dominant_v'].value_counts(dropna=False)}")
 
         # 結果をマージ
         base_gdf = base_gdf.merge(
@@ -147,10 +156,34 @@ def assign_dominant_values(
     if output_path is None:
         base_name, _ = os.path.splitext(os.path.basename(base_path))
         output_path = os.path.join(os.path.dirname(base_path), f"{base_name}_dominant.shp")
-    logger.info(f"出力ファイル: {output_path}")
-
+    
+    # 出力前に不要なカラムを削除
+    columns_to_drop = ['base_area', 'cov_area', 'cov_ratio']
+    columns_to_drop = [col for col in columns_to_drop if col in base_gdf.columns]
+    if columns_to_drop:
+        base_gdf = base_gdf.drop(columns=columns_to_drop)
+    
     # Shapefile書出し
+    print("\n[5/5] 結果を出力中...")
     base_gdf.to_file(output_path)
+    
+    # 完了メッセージ
+    print("\n== 処理が正常に完了しました ==")
+    print(f"出力ファイル: {output_path}")
+    
+    # ログにも記録
+    logger.info(f"処理が完了しました: 出力ファイル={output_path}")
+    logger.info(f"出力レコード数: {len(base_gdf)}")
+    
+    # 処理結果のサマリーを表示
+    if output_field in base_gdf.columns:
+        value_counts = base_gdf[output_field].value_counts()
+        print("\n[処理結果サマリー]")
+        print(f"合計メッシュ数: {len(base_gdf)}")
+        print("\n代表値の内訳:")
+        print(value_counts.head(10))  # 上位10件のみ表示
+        if len(value_counts) > 10:
+            print(f"... 他 {len(value_counts) - 10} 種類の値")
 
 
 if __name__ == '__main__':
