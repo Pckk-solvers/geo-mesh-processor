@@ -1,11 +1,13 @@
 # shp\_to\_asc\_converter
 
-シェープファイル（Shapefile）の **加工・変換** をワンストップで行う Python ツール集です。主な機能は以下の 3 つです。
-
-* **メッシュ生成＋標高付与**
-  計算領域ポリゴンと流域界ポリゴンを同じセル数でグリッド化し、点群データから平均標高を算出してメッシュに書き込みます。
+シェープファイル（Shapefile）の **加工・変換** をワンストップで行う Python ツール集です。主な機能は以下の 4 つです。
+* **メッシュ生成**
+  計算領域ポリゴンと流域界ポリゴンを同じセル数でグリッド化し、必要に応じて標準メッシュから抽出した領域で処理します。
   \[[GitHub](https://github.com/Pckk-solvers/shp_to_asc_converter/tree/main/src/make_shp)]
-* **メッシュ属性代表値付与**
+* **標高付与**
+  作成済みメッシュに点群データから平均標高を計算して付与します。
+  \[[GitHub](https://github.com/Pckk-solvers/shp_to_asc_converter/tree/main/src/make_shp)]
+* **土地利用区分コード付与**
   基準メッシュと属性メッシュを重ね、各セル内で面積割合が最大の属性値を代表値として付与します。
   \[[GitHub](https://github.com/Pckk-solvers/shp_to_asc_converter/tree/main/src/mesh_dominant_module)]
 * **Shapefile → ASCII Grid 変換**
@@ -18,12 +20,12 @@
 
 ## 主な機能一覧
 
-| 機能                     | 概要                                                           | 対象スクリプト / GUI                                                                                                |
-| ---------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| メッシュ生成＋標高付与            | 計算領域ポリゴンをグリッド化し、流域界ポリゴンでトリムした後、点群 CSV/SHP から平均標高を計算してメッシュに付与 | `src/make_shp/pipeline.py` (CLI)  <br>`src/make_shp/mesh_elev_gui.py` (GUI)                                  |
-| メッシュ属性代表値付与            | 基準メッシュと属性メッシュを重ね、各セル内で面積割合が最大の属性値を代表値として付与（閾値未満は NODATA）     | `src/mesh_dominant_module/mesh_dominant.py` (CLI)  <br>`src/mesh_dominant_module/mesh_dominant_gui.py` (GUI) |
-| Shapefile → ASCII Grid | ポリゴンデータを指定属性で ESRI ASCII Grid へラスター化。グリッド数は自動計算              | `src/shp_to_asc/core.py` (ライブラリ)  <br>`src/shp_to_asc/gui.py` (GUI)                                          |
-
+| 機能 | 概要 | 対象スクリプト / GUI |
+| --- | --- | --- |
+| メッシュ生成 | 計算領域ポリゴンと流域界ポリゴンを指定セル数でグリッド化し、標準メッシュ抽出にも対応 | `src/make_shp/mesh_generator.py` (CLI)  <br>`src/make_shp/mesh_gen_gui.py` (GUI) |
+| 標高付与 | 既存メッシュに点群データから平均標高を計算して書き込み | `src/make_shp/elevation_assigner.py` (CLI)  <br>`src/make_shp/elev_assigner_gui.py` (GUI) |
+| 土地利用区分コード付与 | 基準メッシュと属性メッシュを重ね、各セルで面積割合が最大の値を付与 | `src/mesh_dominant_module/mesh_dominant.py` (CLI)  <br>`src/mesh_dominant_module/mesh_dominant_gui.py` (GUI) |
+| Shapefile → ASCII Grid | ポリゴンデータを指定属性で ESRI ASCII Grid へラスター化。グリッド数は自動計算 | `src/shp_to_asc/core.py` (ライブラリ)  <br>`src/shp_to_asc/gui.py` (GUI) |
 ---
 
 ## サンプルデータセット
@@ -42,9 +44,10 @@
 
 ### 2. ランチャーで選択できるツール
 
-* **メッシュ生成＋標高付与** — 計算領域 SHP・流域界 SHP・点群 CSV/SHP を選択し、セル数や NODATA 値を指定して実行。
+* **メッシュ生成** — 計算領域 SHP・流域界 SHP を指定し、セル数や標準メッシュの有無を設定して実行。
+* **標高付与** — メッシュ SHP と点群 CSV/SHP を選択し、標高列や NODATA 値を指定して実行。
 * **Shapefile → ASCII 変換** — 入力 SHP と属性フィールドを選択し、出力先 `.asc` と NODATA 値を指定して実行。
-* **代表属性値付与** — 基準メッシュと属性メッシュを選択し、属性フィールド名・出力フィールド名・閾値・NODATA 値を入力して実行。
+* **土地利用区分コード付与** — 基準メッシュと属性メッシュを選択し、属性フィールド名や閾値などを入力して実行。
 
 ---
 
@@ -63,19 +66,29 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. メッシュ生成＋標高付与
+### 2. メッシュ生成
 
 ```bash
-python src/make_shp/pipeline.py \
+python src/make_shp/mesh_generator.py \
   --domain path/to/domain_polygon.shp \
   --basin  path/to/basin_polygon.shp \
-  --cells_x 100 --cells_y 100 \
-  --points path/to/elevation_points.csv \
-  --zcol elevation \
+  --cells 100 \
   --outdir ./outputs
 ```
 
-### 3. メッシュ属性代表値付与
+### 3. 標高付与
+
+```bash
+python src/make_shp/elevation_assigner.py \
+  --basin-mesh path/to/basin_mesh.shp \
+  --domain-mesh path/to/domain_mesh.shp \
+  --points path/to/elevation_points.csv \
+  --zcol elevation \
+  --nodata -9999 \
+  --outdir ./outputs
+```
+
+### 4. メッシュ属性代表値付与
 
 ```bash
 python src/mesh_dominant_module/mesh_dominant.py \
@@ -88,7 +101,7 @@ python src/mesh_dominant_module/mesh_dominant.py \
   --output result_dominant.shp
 ```
 
-### 4. Shapefile → ASCII Grid（ライブラリ呼び出し）
+### 5. Shapefile → ASCII Grid（ライブラリ呼び出し）
 
 ```python
 from src.shp_to_asc.core import shp_to_ascii
@@ -158,10 +171,10 @@ pip install -r requirements.txt
 
 ```text
 ├─ src/
-│  ├─ app.py                  # Tkinter ランチャー
+│  ├─ app.py, app2.py         # Tkinter ランチャー
 │  ├─ shp_to_asc/             # Shapefile → ASCII 変換
-│  ├─ make_shp/               # メッシュ生成・標高付与
-│  └─ mesh_dominant_module/   # メッシュ属性代表値付与
+│  ├─ make_shp/               # メッシュ生成・標高付与ツール群
+│  └─ mesh_dominant_module/   # 土地利用区分コード付与
 ├─ notebooks/                 # 設計資料
 └─ tests/                     # テスト
 ```
