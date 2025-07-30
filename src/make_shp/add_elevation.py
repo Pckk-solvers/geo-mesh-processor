@@ -5,6 +5,7 @@
 計算領域メッシュへ転記 (流域外は NoData)
 """
 import argparse
+import os
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
@@ -156,10 +157,10 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
     domain['pnt_count'] = domain['pnt_count'].fillna(0).astype(int)
     
     # 不要な列（index_right, geometry_right など）を削除
-    domain = domain.drop(columns=['index_right', 'geometry_right'], errors='ignore')
+    domain = domain.drop(columns=['index_right', 'geometry_right', 'feature_id'], errors='ignore')
+    basin = basin.drop(columns=['index_right', 'geometry_right', 'feature_id'], errors='ignore')
 
     # 出力フォルダを作成
-    import os
     os.makedirs(out_dir, exist_ok=True)
 
     # デバッグ用に標高の統計情報を表示
