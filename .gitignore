@@ -4,3 +4,11 @@ output*
 *__pycache__
 dist
 build
+venv
+*.shp
+*.asc
+*.dbf
+*.prj
+*.cpg
+*.shx
+*.zip

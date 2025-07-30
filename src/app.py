@@ -11,6 +11,7 @@ if project_root not in sys.path:
 try:
     from src.shp_to_asc.gui import ShpToAscApp
     from src.make_shp.mesh_elev_gui import MeshElevApp
+    from src.mesh_dominant_module.mesh_dominant_gui import MeshDominantApp
 except ImportError as e:
     # モジュールが見つからない場合のエラーメッセージ
     import traceback
@@ -53,6 +54,15 @@ class MainLauncher:
             command=self.open_shp_to_asc,
             style="Launcher.TButton"  # カスタムスタイルを適用
         ).pack(pady=5, fill='x')
+        
+        ttk.Button(
+            main_frame,
+            text="代表属性値を基準メッシュに付与",
+            command=self.open_mesh_dominant,
+            style="Launcher.TButton"  # カスタムスタイルを適用
+        ).pack(pady=5, fill='x')
+        
+        
 
 
     def open_new_window(self, app_class, title):
@@ -71,6 +81,10 @@ class MainLauncher:
     def open_mesh_elev(self):
         """メッシュ生成と標高付与ツールを起動します。"""
         self.open_new_window(MeshElevApp, "メッシュ生成と標高付与ツール")
+
+    def open_mesh_dominant(self):
+        """代表属性値を基準メッシュに付与ツールを起動します。"""
+        self.open_new_window(MeshDominantApp, "メッシュ属性代表値付与ツール")
 
 if __name__ == "__main__":
     root = tk.Tk()

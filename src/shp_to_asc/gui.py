@@ -28,6 +28,12 @@ class ShpToAscApp(ttk.Frame):
         # ウィジェットを作成
         self.create_widgets()
         
+        # ウィンドウの初期サイズを計算して設定
+        self.master.update_idletasks()  # ウィジェットのサイズを更新
+        width = self.master.winfo_reqwidth()
+        height = self.master.winfo_reqheight()
+        self.master.minsize(width, height)  # 最小サイズを初期サイズに設定
+        
         # キューを定期的にチェックするコールバックを登録
         self.after(100, self.check_queue)
 
@@ -51,8 +57,8 @@ class ShpToAscApp(ttk.Frame):
         self.field_cb = ttk.Combobox(self, values=[], state='readonly', width=ENTRY_WIDTH-2)
         self.field_cb.grid(row=1, column=1, sticky='w', padx=5, pady=5)
 
-        # --- NoData 値設定 ---
-        ttk.Label(self, text="NoData 値:", width=LABEL_WIDTH, anchor='e')\
+        # --- NODATA 値設定 ---
+        ttk.Label(self, text="NODATA値:", width=LABEL_WIDTH, anchor='e')\
             .grid(row=2, column=0, padx=5, pady=5, sticky='e')
         self.nodata_var = tk.StringVar(value=str(DEFAULT_NODATA))
         ttk.Entry(self, textvariable=self.nodata_var, width=ENTRY_WIDTH)\
