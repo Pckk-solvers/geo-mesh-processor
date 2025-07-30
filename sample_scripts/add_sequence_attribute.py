@@ -61,4 +61,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python sample_scripts\add_sequence_attribute.py --input output\25\basin_mesh_elev.shp --attr seq --repeat 1
+# python sample_scripts\add_sequence_attribute.py --input output\25\basin_mesh_elev.shp --attr 連番 --repeat 1

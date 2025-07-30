@@ -53,56 +53,49 @@ class MeshDominantApp(ttk.Frame):
         ttk.Button(self, text="参照", command=self.select_land, width=BUTTON_WIDTH)\
             .grid(row=1, column=2, padx=PADX, pady=PADY)
 
-        # --- 文字コード指定 ---
-        ttk.Label(self, text="Shapefile文字コード:", width=LABEL_WIDTH, anchor='e')\
-            .grid(row=2, column=0, padx=PADX, pady=PADY, sticky='e')
-        self.encoding_var = tk.StringVar(value='cp932')
-        ttk.Entry(self, textvariable=self.encoding_var, width=ENTRY_WIDTH)\
-            .grid(row=2, column=1, sticky='w', padx=PADX, pady=PADY)
-
         # --- 属性フィールド選択 ---
         ttk.Label(self, text="属性フィールド:", width=LABEL_WIDTH, anchor='e')\
-            .grid(row=3, column=0, padx=PADX, pady=PADY, sticky='e')
+            .grid(row=2, column=0, padx=PADX, pady=PADY, sticky='e')
         self.source_field_cb = ttk.Combobox(self, values=[], state='readonly', width=ENTRY_WIDTH-2)
-        self.source_field_cb.grid(row=3, column=1, sticky='w', padx=PADX, pady=PADY)
+        self.source_field_cb.grid(row=2, column=1, sticky='w', padx=PADX, pady=PADY)
         self.source_field_cb.bind('<<ComboboxSelected>>', self._on_field_selected)
 
         # --- 出力フィールド名 ---
         ttk.Label(self, text="出力フィールド名:", width=LABEL_WIDTH, anchor='e')\
-            .grid(row=4, column=0, padx=PADX, pady=PADY, sticky='e')
+            .grid(row=3, column=0, padx=PADX, pady=PADY, sticky='e')
         self.output_field_var = tk.StringVar(value='')
         ttk.Entry(self, textvariable=self.output_field_var, width=ENTRY_WIDTH)\
-            .grid(row=4, column=1, sticky='w', padx=PADX, pady=PADY)
+            .grid(row=3, column=1, sticky='w', padx=PADX, pady=PADY)
 
         # --- 閾値 ---
         ttk.Label(self, text="閾値:", width=LABEL_WIDTH, anchor='e')\
-            .grid(row=5, column=0, padx=PADX, pady=PADY, sticky='e')
+            .grid(row=4, column=0, padx=PADX, pady=PADY, sticky='e')
         self.threshold_var = tk.DoubleVar(value=0.5)
         ttk.Entry(self, textvariable=self.threshold_var, width=ENTRY_WIDTH)\
-            .grid(row=5, column=1, sticky='w', padx=PADX, pady=PADY)
+            .grid(row=4, column=1, sticky='w', padx=PADX, pady=PADY)
 
         # --- NODATA 値 ---
         ttk.Label(self, text="NODATA値:", width=LABEL_WIDTH, anchor='e')\
-            .grid(row=6, column=0, padx=PADX, pady=PADY, sticky='e')
+            .grid(row=5, column=0, padx=PADX, pady=PADY, sticky='e')
         self.nodata_var = tk.StringVar(value='-9999')
         ttk.Entry(self, textvariable=self.nodata_var, width=ENTRY_WIDTH)\
-            .grid(row=6, column=1, sticky='w', padx=PADX, pady=PADY)
+            .grid(row=5, column=1, sticky='w', padx=PADX, pady=PADY)
 
         # --- 出力ファイル選択 ---
         ttk.Label(self, text="出力ファイル (.shp):", width=LABEL_WIDTH, anchor='e')\
-            .grid(row=7, column=0, padx=PADX, pady=PADY, sticky='e')
+            .grid(row=6, column=0, padx=PADX, pady=PADY, sticky='e')
         self.output_var = tk.StringVar()
         ttk.Entry(self, textvariable=self.output_var, width=ENTRY_WIDTH, state='readonly')\
-            .grid(row=7, column=1, sticky='we', padx=PADX, pady=PADY)
+            .grid(row=6, column=1, sticky='we', padx=PADX, pady=PADY)
         ttk.Button(self, text="参照", command=self.select_output, width=BUTTON_WIDTH)\
-            .grid(row=7, column=2, padx=PADX, pady=PADY)
+            .grid(row=6, column=2, padx=PADX, pady=PADY)
 
         # --- 実行ボタンとステータス ---
         self.status_var = tk.StringVar()
         ttk.Label(self, textvariable=self.status_var, anchor='w')\
-            .grid(row=9, column=0, columnspan=2, sticky='we', padx=PADX, pady=10)
+            .grid(row=7, column=0, columnspan=2, sticky='we', padx=PADX, pady=10)
         self.run_button = ttk.Button(self, text="実行", command=self.run_process, width=BUTTON_WIDTH)
-        self.run_button.grid(row=9, column=2, sticky='e', padx=PADX, pady=10)
+        self.run_button.grid(row=7, column=2, sticky='e', padx=PADX, pady=10)
 
     def select_base(self):
         path = filedialog.askopenfilename(
@@ -118,7 +111,7 @@ class MeshDominantApp(ttk.Frame):
         )
         if path:
             self.land_var.set(path)
-            self.update_fields(encoding=self.encoding_var.get() or 'cp932')
+            self.update_fields(encoding='cp932')
 
     def select_output(self):
         base = self.base_var.get()

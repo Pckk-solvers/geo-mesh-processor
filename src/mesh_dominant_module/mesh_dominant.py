@@ -33,8 +33,8 @@ def assign_dominant_values(
 
     # ファイル読み込み
     print("\n[1/5] ファイルを読み込んでいます...")
-    base_gdf = gpd.read_file(base_path)
-    land_gdf = gpd.read_file(land_path)
+    base_gdf = gpd.read_file(base_path, encoding='cp932')
+    land_gdf = gpd.read_file(land_path, encoding='cp932')
     print(f"  基準メッシュ: {len(base_gdf)} メッシュ")
     print(f"  属性メッシュ: {len(land_gdf)} ポリゴン")
     
