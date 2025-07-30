@@ -155,10 +155,10 @@ class ElevAssignerApp(ttk.Frame):
         self.help_text.pack(fill='both', expand=True, padx=5, pady=5)
 
         help_body = """
-【メッシュ化済み計算領域 (.shp）】
+【計算領域メッシュ (.shp）】
 計算領域のメッシュ化済みポリゴンシェープファイルを選択してください。
 
-【メッシュ化済み流域界 (.shp）】
+【流域界メッシュ (.shp）】
 流域界のメッシュ化済みポリゴンシェープファイルを選択してください。
 
 【点群データ (.csv）】
@@ -176,8 +176,8 @@ CSVデータ内の標高値の列名を選択してください。
 結果ファイルを保存するフォルダを選択してください。
 
 【出力されるデータについて】
-domain_mesh_elev；計算領域の標高メッシュ
-basin_mesh_elev；流域界の標高メッシュ
+(入力ファイル名)_elev；計算領域の標高メッシュ
+(入力ファイル名)_elev；流域界の標高メッシュ
         """.strip()
 
         self.help_text.config(state='normal')
