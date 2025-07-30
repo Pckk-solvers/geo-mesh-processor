@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['src\\app.py'],
+    ['src\\app2.py'],
     pathex=[],
     binaries=[],
     datas=[('./venv/Lib/site-packages/geopandas', 'geopandas'), ('./venv/Lib/site-packages/pyproj', 'pyproj'), ('./venv/Lib/site-packages/rasterio', 'rasterio'), ('data/standard_mesh.shx', 'data'), ('data/standard_mesh.shp', 'data'), ('data/standard_mesh.prj', 'data'), ('data/standard_mesh.dbf', 'data'), ('data/standard_mesh.cpg', 'data')],

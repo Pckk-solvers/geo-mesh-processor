@@ -174,8 +174,10 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
     print("\n計算領域メッシュの点群数統計:")
     print(domain["pnt_count"].describe())
 
-    basin.to_file(f"{out_dir}/basin_mesh_elev.shp")
-    domain.to_file(f"{out_dir}/domain_mesh_elev.shp")
+    basin_filename = os.path.basename(basin_shp)
+    domain_filename = os.path.basename(domain_shp)
+    basin.to_file(f"{out_dir}/{basin_filename}_elev.shp")
+    domain.to_file(f"{out_dir}/{domain_filename}_elev.shp")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="標高付与")

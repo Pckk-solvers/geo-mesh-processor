@@ -54,11 +54,6 @@ class MeshElevApp(ttk.Frame):
         # row=0, column=0 のセルに sticky で全方向展開
         self.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
 
-        # ── ルート(master)側のリサイズ設定 ──
-        # row=0, column=0 のセル（＝ self フレーム）がリサイズで伸びる
-        master.rowconfigure(0, weight=1)
-        master.columnconfigure(0, weight=1)
-
         # ── self（フレーム） 内部のリサイズ設定 ──
         # PanedWindow を置いている column=0 を伸縮対象に
         self.columnconfigure(0, weight=1)

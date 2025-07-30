@@ -36,7 +36,7 @@ pyinstaller `
 --add-data "data/standard_mesh.prj;data" `
 --add-data "data/standard_mesh.dbf;data" `
 --add-data "data/standard_mesh.cpg;data" `
---noconfirm src/app.py
+--noconfirm src/app2.py
 
 なんかうまくいかない！！
 pyinstaller --onefile --name=mesh_tool -w --hidden-import=rasterio.sample run.py
