@@ -53,7 +53,7 @@ class MeshDominantApp(ttk.Frame):
         PADY = 5  # 縦のパディング
 
         # --- 基準メッシュ選択 ---
-        ttk.Label(left_frame, text="基準メッシュ (.shp):", width=LABEL_WIDTH, anchor='e')\
+        ttk.Label(left_frame, text="計算領域メッシュ (.shp):", width=LABEL_WIDTH, anchor='e')\
             .grid(row=0, column=0, padx=PADX, pady=PADY, sticky='e')
         self.base_var = tk.StringVar()
         ttk.Entry(left_frame, textvariable=self.base_var, width=ENTRY_WIDTH, state='readonly')\
@@ -129,20 +129,20 @@ class MeshDominantApp(ttk.Frame):
         self.help_text.pack(fill='both', expand=True, padx=5, pady=5)
 
         help_body = """
-【基準メッシュ (.shp)】
+【計算領域メッシュ (.shp)】
 属性を付与するファイル
 
 【属性メッシュ (.shp)】
 付与する属性を持つファイル（例；土地利用データ）
 
 【属性フィールド】
-属性メッシュから基準メッシュへ付与させる属性名
+属性メッシュから計算領域メッシュへ付与させる属性名
 
 【出力フィールド名】
-基準メッシュに付与する際の属性名
+計算領域メッシュに付与する際の属性名
 
 【閾値】
-0.5の場合は基準メッシュのセル内に属性メッシュが50％存在していたら値を付与、0.3であれば30％存在で値を付与し、閾値から外れた場合はNODATA値とする。
+0.5の場合は計算領域メッシュのセル内に属性メッシュが50％存在していたら値を付与、0.3であれば30％存在で値を付与し、閾値から外れた場合はNODATA値とする。
 
 【NODATA値】
 外部領域や閾値で値なしと判定した領域に設定する値。デフォルトは -9999。
