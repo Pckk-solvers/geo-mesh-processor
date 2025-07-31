@@ -158,10 +158,10 @@ def assign_dominant_values(
         output_path = os.path.join(os.path.dirname(base_path), f"{base_name}_dominant.shp")
     
     # 出力前に不要なカラムを削除
-    columns_to_drop = ['base_area', 'cov_area', 'cov_ratio']
-    columns_to_drop = [col for col in columns_to_drop if col in base_gdf.columns]
-    if columns_to_drop:
-        base_gdf = base_gdf.drop(columns=columns_to_drop)
+    #columns_to_drop = ['base_area', 'cov_area', 'cov_ratio']
+    # columns_to_drop = [col for col in columns_to_drop if col in base_gdf.columns]
+    # if columns_to_drop:
+    #     base_gdf = base_gdf.drop(columns=columns_to_drop)
     
     # Shapefile書出し
     print("\n[5/5] 結果を出力中...")
