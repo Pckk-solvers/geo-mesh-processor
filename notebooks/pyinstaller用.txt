@@ -1,7 +1,7 @@
 バージョン番号を加えるかどうか
 
 pyinstaller `
---name shp_asc_converter `
+--name GeoMeshProcessor `
 --onedir `
 --console `
 --hidden-import=rasterio._shim `
@@ -23,7 +23,7 @@ pyinstaller `
 --noconfirm src/app.py
 
 pyinstaller `
---name shp_asc_converter `
+--name GeoMeshProcessor-v `
 --onedir `
 --console `
 --hidden-import=rasterio._shim `

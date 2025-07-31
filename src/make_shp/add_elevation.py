@@ -65,32 +65,54 @@ def load_points(paths, target_crs, zcol_arg=None):
     """
     複数の点群ファイル (CSV または SHP) を読み込み、
     target_crs に変換して結合した GeoDataFrame を返します。
-    paths: str または str のリスト
+    
+    Args:
+        paths: ファイルパス（文字列または文字列のリスト）
+        target_crs: 変換先の座標参照系
+        zcol_arg: 標高値列の名前（オプション）
+        
+    Returns:
+        geopandas.GeoDataFrame: 結合された点群データ
+        
+    Raises:
+        ValueError: ファイルの読み込みや列の検証に失敗した場合
     """
     def _load_one(path):
+        """単一の点群ファイルを読み込むヘルパー関数"""
         # 1) SHPファイルの場合
         if path.lower().endswith(".shp"):
-            return gpd.read_file(path).to_crs(target_crs)  # 単一SHP読み込み・CRS変換 :contentReference[oaicite:0]{index=0}
+            gdf = gpd.read_file(path).to_crs(target_crs)
+            # SHPファイルの場合はelevation列の存在を確認
+            if 'elevation' not in gdf.columns:
+                raise ValueError(f"SHPファイル '{path}' に 'elevation' 列が存在しません")
+            return gdf
 
         # 2) CSVファイルの場合
-        df = pd.read_csv(path)  # CSV読み込み :contentReference[oaicite:1]{index=1}
-        x_col, y_col = get_xy_columns(df)  # X,Y列検出 :contentReference[oaicite:2]{index=2}
-        z_cands = get_z_candidates(df, x_col, y_col)  # Z列候補取得 :contentReference[oaicite:3]{index=3}
+        df = pd.read_csv(path)
+        x_col, y_col = get_xy_columns(df)
+        z_cands = get_z_candidates(df, x_col, y_col)
 
         # 3) Z列の決定
         if zcol_arg:
             if zcol_arg in z_cands:
                 z_col = zcol_arg
             else:
-                raise ValueError(f"現在処理中ファイルの{path}には指定された 標高値列 '{zcol_arg}' が見つかりません。他の候補: {z_cands}")
+                raise ValueError(
+                    f"ファイル '{path}' に指定された標高値列 '{zcol_arg}' が見つかりません。\n"
+                    f"利用可能な列: {z_cands}"
+                )
         else:
             if len(z_cands) == 1:
                 z_col = z_cands[0]
             else:
-                raise ValueError(f"現在処理中ファイルの{path}にはZ 列候補が複数あります: {z_cands}。--zcol で指定してください")
+                raise ValueError(
+                    f"ファイル '{path}' で標高値列を特定できません。複数の候補があります。\n"
+                    f"候補: {z_cands}\n"
+                    "標高値列を明示的に指定するには --zcol オプションを使用してください。"
+                )
 
         # 4) GeoDataFrame 作成
-        geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]  # ジオメトリ作成 :contentReference[oaicite:5]{index=5}
+        geom = [Point(xy) for xy in zip(df[x_col], df[y_col])]
         gdf = gpd.GeoDataFrame(
             df[[z_col]].rename(columns={z_col: "elevation"}),
             geometry=geom,
@@ -98,13 +120,27 @@ def load_points(paths, target_crs, zcol_arg=None):
         )
         return gdf
 
-    # 5) 複数ファイル読み込み＆結合
-    if isinstance(paths, (list, tuple)):
-        gdfs = [_load_one(p) for p in paths]
+    # パスをリストに統一
+    paths = [paths] if isinstance(paths, str) else paths
+    
+    if not paths:
+        raise ValueError("処理するファイルが指定されていません")
+    
+    # すべてのファイルを読み込み
+    gdfs = []
+    for path in paths:
+        try:
+            gdf = _load_one(path)
+            gdfs.append(gdf)
+        except Exception as e:
+            raise ValueError(f"ファイル '{path}' の処理中にエラーが発生しました: {str(e)}")
+    
+    # すべてのファイルを結合
+    if gdfs:
         combined = pd.concat(gdfs, ignore_index=True)
         return gpd.GeoDataFrame(combined, crs=target_crs)
-    else:
-        return _load_one(paths)
+    
+    raise ValueError("有効なデータが読み込めませんでした")
 
 def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
     # Nodata値が指定されていない場合はデフォルト値を使用
@@ -173,9 +209,10 @@ def main(basin_shp, domain_shp, points_path, out_dir, zcol=None, nodata=None):
     print(domain["elevation"].describe())
     print("\n計算領域メッシュの点群数統計:")
     print(domain["pnt_count"].describe())
-
-    basin_filename = os.path.basename(basin_shp)
-    domain_filename = os.path.basename(domain_shp)
+    
+    # 拡張子以外の部分を取得
+    basin_filename = os.path.splitext(os.path.basename(basin_shp))[0]
+    domain_filename = os.path.splitext(os.path.basename(domain_shp))[0]
     basin.to_file(f"{out_dir}/{basin_filename}_elev.shp")
     domain.to_file(f"{out_dir}/{domain_filename}_elev.shp")
 

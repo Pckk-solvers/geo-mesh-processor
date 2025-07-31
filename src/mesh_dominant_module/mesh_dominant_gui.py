@@ -226,7 +226,7 @@ class MeshDominantApp(ttk.Frame):
         try:
             assign_dominant_values(**params)
             self.status_var.set('完了')
-            messagebox.showinfo('完了', '処理が正常に完了しました。')
+            messagebox.showinfo('完了', f'"{self.output_field_var.get()}" を付与しました。')
         except Exception as e:
             self.status_var.set('エラー')
             messagebox.showerror('エラー', str(e))

@@ -28,7 +28,7 @@ class MainLauncher:
     """地理空間情報ツール用のシンプルなTkinterランチャー"""
     def __init__(self, master):
         self.master = master
-        master.title("地理空間情報ツール ランチャー")
+        master.title("GeoMeshProcessor ランチャー")
         master.geometry("350x300")
         master.resizable(False, False)
         # 子ウィンドウとアプリインスタンスの参照保持

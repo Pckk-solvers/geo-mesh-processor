@@ -176,8 +176,8 @@ CSVデータ内の標高値の列名を選択してください。
 結果ファイルを保存するフォルダを選択してください。
 
 【出力されるデータについて】
-(入力ファイル名)_elev；計算領域の標高メッシュ
-(入力ファイル名)_elev；流域界の標高メッシュ
+(計算領域メッシュファイル名)_elev；計算領域の標高メッシュ
+(流域界メッシュファイル名)_elev；流域界の標高メッシュ
         """.strip()
 
         self.help_text.config(state='normal')
@@ -268,19 +268,13 @@ CSVデータ内の標高値の列名を選択してください。
             self.domain_var.set(path)
 
     def browse_points(self):
-        """点群ファイルを選択（複数可）"""
         paths = filedialog.askopenfilenames(
-            filetypes=[('CSV', '*.csv')],
-            title='点群ファイルを選択（複数可）'
+            filetypes=[('CSV','*.csv')],
+            title="点群データを選択 (複数可)"
         )
         if paths:
-            # 既存のパスと結合（あれば）
-            current = self.points_var.get()
-            if current:
-                current_paths = current.split(';')
-                paths = list(set(current_paths + list(paths)))  # 重複を除去
-            self.points_var.set(';'.join(paths))
-            # 標高値列の候補を更新
+            # 可読性のため ';' 区切りで表示
+            self.points_var.set(";".join(paths))
             self._update_z_candidates(paths)
 
     def browse_outdir(self):
@@ -290,36 +284,75 @@ CSVデータ内の標高値の列名を選択してください。
             self.outdir_var.set(path)
 
     def validate_inputs(self):
-        """入力チェック"""
-        if not all([self.basin_var.get(), self.domain_var.get(), self.points_var.get()]):
-            messagebox.showerror('エラー', '必須項目が入力されていません。')
-            return False
+        """入力チェック
         
-        # 点群ファイルの存在確認
-        for path in self.points_var.get().split(';'):
-            if not os.path.exists(path):
-                messagebox.showerror('エラー', f'指定されたファイルが見つかりません: {path}')
-                return False
+        Returns:
+            bool: 入力が有効な場合はTrue、そうでない場合はFalse
+        """
+        # 必須フィールドのチェック
+        errors = []
+        
+        if not self.basin_var.get():
+            errors.append("流域界メッシュが選択されていません。")
+            
+        if not self.domain_var.get():
+            errors.append("計算領域メッシュが選択されていません。")
+            
+        if not self.points_var.get():
+            errors.append("点群ファイルが選択されていません。")
+        else:
+            # 点群ファイルの存在確認
+            for path in self.points_var.get().split(';'):
+                if not os.path.exists(path):
+                    errors.append(f"点群ファイルが見つかりません: {path}")
+        
+        # 標高値列のチェック
+        if not self.z_var.get():
+            errors.append("標高値列が選択されていません。")
+            
+        # NODATA値のチェック
+        if not self.nodata_var.get().strip():
+            errors.append("NODATA値が入力されていません。")
+        else:
+            try:
+                float(self.nodata_var.get())
+            except ValueError:
+                errors.append("NODATA値は数値で指定してください。")
                 
+        # 出力フォルダのチェック
+        if not self.outdir_var.get():
+            errors.append("出力フォルダが選択されていません。")
+        
+        # エラーがあれば表示してFalseを返す
+        if errors:
+            messagebox.showerror(
+                '入力エラー',
+                '以下のエラーを修正してください：\n\n' + '\n'.join(f'・{error}' for error in errors)
+            )
+            return False
+            
         return True
 
     def run_process(self):
         """標高付与処理を実行"""
+        # 入力チェック
         if not self.validate_inputs():
             return
-
-        # ボタンを無効化
-        self.run_button.config(state='disabled')
-        self.status_var.set('処理を実行中...')
+            
+        # 処理中はボタンを無効化
+        self.run_button['state'] = 'disabled'
+        self.status_var.set('処理中...')
         
-        # 別スレッドで実行
-        threading.Thread(target=self._run_in_thread, daemon=True).start()
+        # 別スレッドで処理を実行
+        thread = threading.Thread(target=self._run_in_thread)
+        thread.daemon = True
+        thread.start()
 
     def _run_in_thread(self):
         """別スレッドで実行する処理"""
         try:
             points = self.points_var.get().split(';')
-            zcol = self.z_var.get() if self.z_var.get() else None
+            zcol = self.z_var.get()
             nodata = float(self.nodata_var.get()) if self.nodata_var.get() else None
             
             add_elevation(
