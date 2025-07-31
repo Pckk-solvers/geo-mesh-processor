@@ -9,6 +9,7 @@ import os
 import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
+
 import threading
 import queue
 import tkinter.font as tkFont
@@ -57,6 +58,7 @@ class MeshGenApp(ttk.Frame):
         master.columnconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
+
 
         # ウィジェットの作成
         self.create_widgets()
@@ -109,7 +111,7 @@ class MeshGenApp(ttk.Frame):
         # メッシュ分割数
         ttk.Label(left_frame, text="メッシュ分割数:", width=LABEL_WIDTH, anchor='e').grid(row=2, column=0, sticky='w', padx=5, pady=5)
         self.cells_var = tk.StringVar(value="20")
-        ttk.Spinbox(left_frame, from_=10, to=1000, textvariable=self.cells_var, width=10).grid(
+        ttk.Spinbox(left_frame, from_=1, to=1000, textvariable=self.cells_var, width=10).grid(
             row=2, column=1, padx=5, pady=5, sticky='w')
         
         # 出力フォルダ
@@ -146,7 +148,7 @@ class MeshGenApp(ttk.Frame):
 計算領域のポリゴンシェープファイルを選択してください。
 
 【流域界ポリゴン (.shp）】
-計算領域と同じメッシュサイズに分割したい範囲のポリゴンシェープファイルを指定します。
+RRI計算対象領域となる流域のポリゴンシェープファイルを選択してください。
 
 【メッシュ分割数】
 標準メッシュの分割数。数値が大きいほど細かくなりますが、処理時間が長くなります。
@@ -165,7 +167,7 @@ class MeshGenApp(ttk.Frame):
 【出力フォルダ】
 結果ファイルを保存するフォルダを選択してください。
 
-【出力されるデータについて】
+【出力されるデータ】
 1. domain_standard_mesh
    - 説明: 計算領域が含まれる標準地域メッシュのポリゴンデータ
    - 内容: 標準的な地域メッシュを計算領域で切り出したもの
@@ -199,8 +201,7 @@ class MeshGenApp(ttk.Frame):
             self.cells_var.set(str(self.initial_values['cells']))
         if 'out_dir' in self.initial_values:
             self.outdir_var.set(self.initial_values['out_dir'])
-        if 'mesh_id' in self.initial_values:
-            self.mesh_id_var.set(self.initial_values['mesh_id'])
+
 
     def browse_domain(self):
         """計算領域シェープファイルを選択"""
@@ -220,12 +221,6 @@ class MeshGenApp(ttk.Frame):
         if path:
             self.outdir_var.set(path)
 
-    def run_process(self):
-        """メッシュ生成処理を実行"""
-        # 入力チェック
-        if not all([self.domain_var.get(), self.basin_var.get(), self.outdir_var.get()]):
-            messagebox.showerror('エラー', '必須項目が入力されていません。')
-            return
 
     def run_process(self):
         """メッシュ生成処理を実行"""

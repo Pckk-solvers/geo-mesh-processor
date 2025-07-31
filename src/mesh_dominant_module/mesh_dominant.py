@@ -60,7 +60,7 @@ def assign_dominant_values(
     # 空間オーバーレイ
     print("\n[2/5] 空間オーバーレイを実行中...")
     land_subset = land_gdf[[source_field, 'geometry']]
-    inter = gpd.overlay(base_gdf, land_subset, how='intersection', keep_geom_type="Polygon")
+    inter = gpd.overlay(base_gdf, land_subset, how='intersection', keep_geom_type='Polygon')
     print(f"  オーバーレイ結果: {len(inter)} の交差領域を検出")
 
     if inter.empty:
