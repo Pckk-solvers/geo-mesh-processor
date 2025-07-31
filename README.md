@@ -1,4 +1,4 @@
-# shp\_to\_asc\_converter
+# GeoMeshProcessor
 
 シェープファイル（Shapefile）の **加工・変換** をワンストップで行う Python ツール集です。主な機能は以下の 4 つです。
 * **メッシュ生成**
