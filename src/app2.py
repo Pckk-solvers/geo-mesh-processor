@@ -31,6 +31,9 @@ class MainLauncher:
         master.title("地理空間情報ツール ランチャー")
         master.geometry("350x300")
         master.resizable(False, False)
+        # 子ウィンドウとアプリインスタンスの参照保持
+        self.child_windows = []
+        self.child_apps = []
 
         # スタイルの設定
         style = ttk.Style()
@@ -79,8 +82,16 @@ class MainLauncher:
             window = tk.Toplevel(self.master)
             window.title(title)
             app = app_class(window)
+            self.child_windows.append(window)
+            self.child_apps.append(app)
+            window.protocol("WM_DELETE_WINDOW", lambda w=window: self._on_child_close(w))
         except Exception as e:
             messagebox.showerror("エラー", f"アプリケーションの起動に失敗しました: {e}")
+
+    def _on_child_close(self, window):
+        if window in self.child_windows:
+            self.child_windows.remove(window)
+        window.destroy()
 
     def open_shp_to_asc(self):
         """ShapefileからASCIIへの変換ツールを起動します。"""
