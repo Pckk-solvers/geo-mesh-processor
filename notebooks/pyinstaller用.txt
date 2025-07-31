@@ -38,6 +38,4 @@ pyinstaller `
 --add-data "data/standard_mesh.cpg;data" `
 --noconfirm src/app2.py
 
-なんかうまくいかない！！
-pyinstaller --onefile --name=mesh_tool -w --hidden-import=rasterio.sample run.py
-バージョン名は-v1.00とかにする
+バージョン名は _v1.00_win のようにする
