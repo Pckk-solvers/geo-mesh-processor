@@ -38,4 +38,20 @@ pyinstaller `
 --add-data "data/standard_mesh.cpg;data" `
 --noconfirm src/app2.py
 
+
+pyinstaller \
+  --name GeoMeshProcessor \
+  --onefile \
+  --windowed \
+  --clean \
+  --strip \
+  --hidden-import=rasterio._shim \
+  --hidden-import=rasterio.sample \
+  --add-data "data/standard_mesh.shx;data" \
+  --add-data "data/standard_mesh.shp;data" \
+  --add-data "data/standard_mesh.prj;data" \
+  --add-data "data/standard_mesh.dbf;data" \
+  --add-data "data/standard_mesh.cpg;data" \
+  --noconfirm src/app2.py
+  
 バージョン名は _v1.00_win のようにする
