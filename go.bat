@@ -18,42 +18,32 @@ if /I "%~1"=="--reinstall" ( set "FORCE_REINSTALL=1" & shift )
 
 echo [INFO] 作業ディレクトリ: %CD%
 
-rem === Python 選択: py -3 優先 / QGIS・OSGeo4W・WindowsApps を除外 / ensurepip ありのみ ===
+rem === Python 検出（py -3 優先、QGIS/OSGeo4W/WindowsApps を除外、ensurepip 必須）===
 set "PY_CMD="
 
 where py >nul 2>&1
 if not errorlevel 1 (
   py -3 -m ensurepip --version >nul 2>&1
-  if not errorlevel 1 (
-    set "PY_CMD=py -3"
-  )
+  if not errorlevel 1 set "PY_CMD=py -3"
 )
 
 if not defined PY_CMD (
   for /f "delims=" %%I in ('where python 2^>nul') do (
-    echo "%%I" | find /i "WindowsApps" >nul && (rem skip) || (
-      echo "%%I" | find /i "qgis" >nul && (rem skip) || (
-        echo "%%I" | find /i "osgeo4w" >nul && (rem skip) || (
+    set "CAND=%%I"
+    set "T=!CAND:WindowsApps=!"
+    if /I "!T!"=="!CAND!" (
+      set "T=!CAND:qgis=!"
+      if /I "!T!"=="!CAND!" (
+        set "T=!CAND:osgeo4w=!"
+        if /I "!T!"=="!CAND!" (
           "%%I" -m ensurepip --version >nul 2>&1
-          if not errorlevel 1 (
-            set "PY_CMD="%%I""
-            goto :PY_OK
-          )
+          if not errorlevel 1 ( set "PY_CMD=%%I" & goto :PY_OK )
         )
       )
     )
   )
   if not defined PY_CMD goto :ERR_NO_PY
-) else (
-  goto :PY_OK
 )
-
-:ERR_NO_PY
-echo [ERROR] ensurepip を備えた通常の Python が見つかりませんでした。
-echo         QGIS/OSGeo4W 付属の Python では venv 作成に失敗します。
-set "RC=1"
-goto :FINALLY
-
 :PY_OK
 echo [INFO] 使用する Python: %PY_CMD%
 
